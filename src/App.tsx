@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { HeaderNavbar } from './components/HeaderNavbar';
 import { LoginModal } from './components/LoginModal';
 import { Navigation } from './components/Navigation';
+import { PullToRefresh } from './components/PullToRefresh';
 import { WizardStep1Project } from './components/WizardStep1Project';
 import { WizardStep2SmartTasks } from './components/WizardStep2SmartTasks';
 import { WizardStep3AssignTeam } from './components/WizardStep3AssignTeam';
@@ -285,6 +286,18 @@ export const App: React.FC = () => {
     }
   };
 
+  const handleRefreshData = async () => {
+    const p = getProjects();
+    const t = getTasks();
+    const n = getNotifications();
+    setProjects(p);
+    setTasks(t);
+    setNotifications(n);
+
+    // Simulate smooth network/storage sync feedback
+    await new Promise(resolve => setTimeout(resolve, 600));
+  };
+
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white pb-20 sm:pb-12 w-full max-w-full overflow-x-hidden">
       
@@ -299,16 +312,17 @@ export const App: React.FC = () => {
         }}
       />
 
-      {/* Main Container */}
-      <main className="max-w-3xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8 flex-1 w-full space-y-6">
-        
-        {/* Professional Navigation Bar (Segmented on desktop, bottom dock on mobile) */}
-        <Navigation
-          step={step}
-          setStep={setStep}
-          activeProject={activeProject}
-          hasTasks={activeTasks.length > 0}
-        />
+      <PullToRefresh onRefresh={handleRefreshData}>
+        {/* Main Container */}
+        <main className="max-w-3xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8 flex-1 w-full space-y-6">
+          
+          {/* Professional Navigation Bar (Segmented on desktop, bottom dock on mobile) */}
+          <Navigation
+            step={step}
+            setStep={setStep}
+            activeProject={activeProject}
+            hasTasks={activeTasks.length > 0}
+          />
 
         {/* Step 1: Project Card */}
         {step === 'step1_project' && (
@@ -366,6 +380,7 @@ export const App: React.FC = () => {
         )}
 
       </main>
+      </PullToRefresh>
 
       {/* Login Modal */}
       <LoginModal
