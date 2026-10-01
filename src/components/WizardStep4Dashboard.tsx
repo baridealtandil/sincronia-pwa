@@ -1,8 +1,8 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { 
-  CheckCircle2, Circle, Eye, Plus, FolderPlus, 
-  Sparkles, Clock, Bell, Check, User
+  CheckCircle2, Eye, Plus, FolderPlus, Clock, 
+  AlertCircle, Users, Sparkles, UserCheck, Search, Filter, Shield
 } from 'lucide-react';
 import { Project, Task, AppNotification } from '../types';
 
@@ -29,12 +29,20 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   onNewProjectClick,
   onAddMoreTasksClick
 }) => {
-  const [filterCollaborator, setFilterCollaborator] = useState<string>('all');
+  const [filterPerson, setFilterPerson] = useState<string>('all');
+  const [filterStatus, setFilterStatus] = useState<'all' | 'unread' | 'read' | 'completed'>('all');
 
-  const completedCount = tasks.filter(t => t.status === 'completado').length;
-  const readCount = tasks.filter(t => t.status === 'leido' || t.status === 'completado').length;
-  const totalCount = tasks.length;
-  const percent = totalCount > 0 ? Math.round((completedCount / totalCount) * 100) : 0;
+  const totalTasks = tasks.length;
+  const completedTasks = tasks.filter(t => t.status === 'completado');
+  const readTasks = tasks.filter(t => t.status === 'leido' || t.status === 'completado');
+  const unreadTasks = tasks.filter(t => t.status === 'pendiente');
+
+  const completedCount = completedTasks.length;
+  const readCount = readTasks.length;
+  const unreadCount = unreadTasks.length;
+  const percent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
+
+  const uniqueAssignees = Array.from(new Set(tasks.map(t => t.assignedTo)));
 
   const handleRead = (taskId: string) => {
     onConfirmReadTask(taskId);
@@ -43,7 +51,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   const handleComplete = (taskId: string) => {
     try {
       confetti({
-        particleCount: 75,
+        particleCount: 80,
         spread: 70,
         origin: { y: 0.6 },
         colors: ['#6366f1', '#34d399', '#a855f7']
@@ -55,47 +63,26 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   };
 
   const filteredTasks = tasks.filter(t => {
-    if (filterCollaborator !== 'all' && t.assignedTo !== filterCollaborator) {
-      return false;
-    }
+    if (filterPerson !== 'all' && t.assignedTo !== filterPerson) return false;
+    if (filterStatus === 'unread') return t.status === 'pendiente';
+    if (filterStatus === 'read') return t.status === 'leido';
+    if (filterStatus === 'completed') return t.status === 'completado';
     return true;
   });
 
-  const uniqueAssignees = Array.from(new Set(tasks.map(t => t.assignedTo)));
-  const latestNotification = notifications.length > 0 ? notifications[0] : null;
-
   return (
-    <div className="max-w-2xl mx-auto space-y-6 animate-fade-in">
+    <div className="max-w-3xl mx-auto space-y-6 animate-fade-in">
       
-      {/* Latest Notification Toast Banner (If any) */}
-      {latestNotification && (
-        <div className={`p-4 rounded-2xl border shadow-xl flex items-center justify-between gap-3 animate-fade-in ${
-          latestNotification.type === 'completed'
-            ? 'bg-emerald-950/80 border-emerald-500/40 text-emerald-200'
-            : 'bg-indigo-950/80 border-indigo-500/40 text-indigo-200'
-        }`}>
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center font-bold text-base flex-shrink-0">
-              {latestNotification.type === 'completed' ? '🎉' : '👀'}
-            </div>
-            <div>
-              <h5 className="font-extrabold text-xs">{latestNotification.title}</h5>
-              <p className="text-xs text-slate-200">{latestNotification.message}</p>
-            </div>
-          </div>
-          <span className="text-[10px] opacity-75 font-mono">Reciente</span>
-        </div>
-      )}
-
-      {/* Main Project Overview Card */}
-      <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-2xl space-y-5">
+      {/* 📊 TARJETA DE AVANCE GLOBAL DEL PROYECTO */}
+      <div className="rounded-3xl bg-slate-900 border border-slate-800 p-6 sm:p-8 shadow-2xl space-y-6">
         
+        {/* Title & Actions */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <div className="flex items-center gap-2 mb-1">
               <h2 className="text-2xl font-extrabold text-white tracking-tight">{project.name}</h2>
-              <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20">
-                En Curso
+              <span className="text-[10px] font-extrabold px-3 py-1 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Avance en Vivo
               </span>
             </div>
             <p className="text-xs text-slate-400">Jefe del Proyecto: <strong className="text-slate-200">{project.leaderName}</strong></p>
@@ -109,78 +96,158 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                   className="px-3.5 py-2 rounded-2xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white text-xs font-bold flex items-center gap-1.5 transition-all"
                 >
                   <Plus className="w-4 h-4 text-indigo-400" />
-                  <span>+ Tareas</span>
+                  <span>+ Agregar Tareas</span>
                 </button>
                 <button
                   onClick={onNewProjectClick}
                   className="px-4 py-2 rounded-2xl bg-indigo-600 hover:bg-indigo-500 text-white text-xs font-bold flex items-center gap-1.5 shadow-lg shadow-indigo-600/20 active:scale-95 transition-all"
                 >
                   <FolderPlus className="w-4 h-4" />
-                  <span>Nuevo</span>
+                  <span>Nuevo Proyecto</span>
                 </button>
               </>
             )}
           </div>
         </div>
 
-        {/* Progress Card Gauge */}
-        <div className="space-y-2 pt-3 border-t border-slate-800">
+        {/* Dynamic Progress Meter */}
+        <div className="space-y-2 pt-2 border-t border-slate-800">
           <div className="flex justify-between items-center text-xs font-extrabold">
-            <span className="text-slate-300">Avance Total ({completedCount}/{totalCount} Tareas 100% Listas)</span>
-            <span className="text-indigo-400 font-mono text-sm">{percent}%</span>
+            <span className="text-slate-200 flex items-center gap-1.5">
+              <Sparkles className="w-4 h-4 text-indigo-400" />
+              Porcentaje Global Completado
+            </span>
+            <span className="text-indigo-400 font-mono text-base">{percent}%</span>
           </div>
 
-          <div className="h-3.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
+          <div className="h-4 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
             <div
               className="h-full bg-gradient-to-r from-indigo-500 via-purple-500 to-emerald-400 rounded-full transition-all duration-700 ease-out"
               style={{ width: `${percent}%` }}
             />
           </div>
+        </div>
 
-          <div className="flex justify-between items-center text-[11px] text-slate-400 pt-1">
-            <span>👀 {readCount} lecturas confirmadas</span>
-            <span>✅ {completedCount} tareas terminadas 100%</span>
+        {/* 3 Status KPI Cards (Quien leyó, Quien NO leyó, Quien terminó) */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-2">
+          
+          {/* Card 1: Pendientes de Lectura */}
+          <div 
+            onClick={() => setFilterStatus(filterStatus === 'unread' ? 'all' : 'unread')}
+            className={`cursor-pointer p-4 rounded-2xl border transition-all ${
+              filterStatus === 'unread'
+                ? 'bg-amber-500/10 border-amber-500/50 shadow-lg ring-1 ring-amber-500/30'
+                : 'bg-slate-950/70 border-slate-800/80 hover:border-amber-500/30'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-bold text-amber-400 flex items-center gap-1">
+                <Clock className="w-3.5 h-3.5" />
+                Sin Leer
+              </span>
+              <span className="text-lg font-extrabold text-amber-400 font-mono">{unreadCount}</span>
+            </div>
+            <p className="text-[10px] text-slate-400">Tareas que nadie ha abierto aún</p>
           </div>
+
+          {/* Card 2: Leídos */}
+          <div 
+            onClick={() => setFilterStatus(filterStatus === 'read' ? 'all' : 'read')}
+            className={`cursor-pointer p-4 rounded-2xl border transition-all ${
+              filterStatus === 'read'
+                ? 'bg-indigo-500/10 border-indigo-500/50 shadow-lg ring-1 ring-indigo-500/30'
+                : 'bg-slate-950/70 border-slate-800/80 hover:border-indigo-500/30'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-bold text-indigo-300 flex items-center gap-1">
+                <Eye className="w-3.5 h-3.5 text-indigo-400" />
+                Lectura Confirmada
+              </span>
+              <span className="text-lg font-extrabold text-indigo-300 font-mono">{readCount}</span>
+            </div>
+            <p className="text-[10px] text-slate-400">Confirmaron que leyeron las órdenes</p>
+          </div>
+
+          {/* Card 3: Completados 100% */}
+          <div 
+            onClick={() => setFilterStatus(filterStatus === 'completed' ? 'all' : 'completed')}
+            className={`cursor-pointer p-4 rounded-2xl border transition-all ${
+              filterStatus === 'completed'
+                ? 'bg-emerald-500/10 border-emerald-500/50 shadow-lg ring-1 ring-emerald-500/30'
+                : 'bg-slate-950/70 border-slate-800/80 hover:border-emerald-500/30'
+            }`}
+          >
+            <div className="flex items-center justify-between mb-1">
+              <span className="text-[11px] font-bold text-emerald-400 flex items-center gap-1">
+                <CheckCircle2 className="w-3.5 h-3.5" />
+                100% Terminadas
+              </span>
+              <span className="text-lg font-extrabold text-emerald-400 font-mono">{completedCount}</span>
+            </div>
+            <p className="text-[10px] text-slate-400">Tildadas como finalizadas</p>
+          </div>
+
         </div>
 
       </div>
 
-      {/* Filter by Assignee */}
-      {uniqueAssignees.length > 1 && (
-        <div className="flex items-center gap-2 overflow-x-auto pb-1">
-          <span className="text-xs text-slate-400 flex-shrink-0 font-bold">Filtrar:</span>
-          <button
-            onClick={() => setFilterCollaborator('all')}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              filterCollaborator === 'all'
-                ? 'bg-slate-800 text-white shadow-sm'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            Todos ({totalCount})
-          </button>
+      {/* 👤 FILTRAR AVANCE POR PERSONA / COLABORADOR */}
+      {uniqueAssignees.length > 0 && (
+        <div className="rounded-2xl bg-slate-900 border border-slate-800 p-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-slate-300 flex items-center gap-1.5">
+              <Users className="w-4 h-4 text-indigo-400" />
+              Ver Avance Específico por Colaborador:
+            </span>
+            {filterPerson !== 'all' && (
+              <button
+                onClick={() => setFilterPerson('all')}
+                className="text-[11px] text-indigo-400 hover:underline font-semibold"
+              >
+                Ver Todos
+              </button>
+            )}
+          </div>
 
-          {uniqueAssignees.map(name => (
+          <div className="flex items-center gap-2 overflow-x-auto pb-1">
             <button
-              key={name}
-              onClick={() => setFilterCollaborator(name)}
-              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
-                filterCollaborator === name
-                  ? 'bg-indigo-600 text-white shadow-sm'
-                  : 'text-slate-400 hover:text-white'
+              onClick={() => setFilterPerson('all')}
+              className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
+                filterPerson === 'all'
+                  ? 'bg-indigo-600 text-white shadow-md'
+                  : 'bg-slate-950 text-slate-400 hover:text-white border border-slate-800'
               }`}
             >
-              👤 {name} ({tasks.filter(t => t.assignedTo === name).length})
+              Todos los Integrantes ({totalTasks})
             </button>
-          ))}
+
+            {uniqueAssignees.map(name => {
+              const personTasks = tasks.filter(t => t.assignedTo === name);
+              const personCompleted = personTasks.filter(t => t.status === 'completado').length;
+              return (
+                <button
+                  key={name}
+                  onClick={() => setFilterPerson(name)}
+                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all whitespace-nowrap ${
+                    filterPerson === name
+                      ? 'bg-indigo-600 text-white shadow-md'
+                      : 'bg-slate-950 text-slate-300 hover:text-white border border-slate-800'
+                  }`}
+                >
+                  👤 {name} ({personCompleted}/{personTasks.length} listas)
+                </button>
+              );
+            })}
+          </div>
         </div>
       )}
 
-      {/* Task Cards Grid */}
+      {/* 🎴 LISTADO DE TARJETAS DE TAREA DETALLADAS */}
       <div className="space-y-4">
         {filteredTasks.length === 0 ? (
           <div className="p-8 text-center rounded-3xl bg-slate-900 border border-slate-800">
-            <p className="text-xs text-slate-400">No hay tareas en este proyecto aún.</p>
+            <p className="text-xs text-slate-400">No hay tareas que coincidan con este filtro.</p>
           </div>
         ) : (
           filteredTasks.map((task) => {
@@ -210,7 +277,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                     </p>
                   </div>
 
-                  {/* Status Card Badge */}
+                  {/* Estado Visual de la Tarjeta */}
                   <div className="flex-shrink-0">
                     {isCompleted ? (
                       <span className="text-[11px] font-extrabold px-3 py-1.5 rounded-xl bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 flex items-center gap-1.5">
@@ -231,8 +298,35 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                   </div>
                 </div>
 
+                {/* Audit Details (Quien leyó y cuando, quien termino) */}
+                <div className="text-[11px] text-slate-400 space-y-1 bg-slate-950/60 p-3 rounded-2xl border border-slate-800/80">
+                  <div className="flex items-center justify-between">
+                    <span className="flex items-center gap-1">
+                      <Eye className="w-3 h-3 text-indigo-400" />
+                      Estado de Lectura:
+                    </span>
+                    {task.readBy ? (
+                      <span className="text-indigo-300 font-bold"> Confirmado por {task.readBy}</span>
+                    ) : (
+                      <span className="text-amber-400 font-semibold">⚪ Aún no ha confirmado lectura</span>
+                    )}
+                  </div>
+
+                  <div className="flex items-center justify-between pt-1 border-t border-slate-900">
+                    <span className="flex items-center gap-1">
+                      <CheckCircle2 className="w-3 h-3 text-emerald-400" />
+                      Estado de Trabajo:
+                    </span>
+                    {task.completedBy ? (
+                      <span className="text-emerald-400 font-bold"> 100% Completado por {task.completedBy}</span>
+                    ) : (
+                      <span className="text-slate-500 font-medium">En proceso de ejecución</span>
+                    )}
+                  </div>
+                </div>
+
                 {/* Card Action Buttons */}
-                <div className="flex items-center justify-end gap-2.5 pt-3 border-t border-slate-800/80">
+                <div className="flex items-center justify-end gap-2.5 pt-2">
                   
                   {/* Action 1: Confirm Reading */}
                   {!isRead && (
@@ -259,7 +353,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                   {isCompleted && (
                     <div className="text-xs text-emerald-400 font-bold flex items-center gap-1.5 py-1">
                       <CheckCircle2 className="w-4 h-4" />
-                      <span>¡Trabajo finalizado 100% por {task.completedBy}!</span>
+                      <span>¡Trabajo finalizado al 100%!</span>
                     </div>
                   )}
 
