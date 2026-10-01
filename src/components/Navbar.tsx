@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Shield, UserCheck, Radio, Download, KeyRound, Sparkles } from 'lucide-react';
+import { Shield, UserCheck, Radio, Download, KeyRound, Users, GitMerge } from 'lucide-react';
 import { UserRole } from '../types';
 
 interface NavbarProps {
@@ -8,6 +8,7 @@ interface NavbarProps {
   onRoleChange: (role: UserRole) => void;
   onUserNameChange: (name: string) => void;
   onOpenMasterPin: () => void;
+  onOpenTeamModal: () => void;
   deferredInstallPrompt: any;
   onInstallPwa: () => void;
 }
@@ -18,6 +19,7 @@ export const Navbar: React.FC<NavbarProps> = ({
   onRoleChange,
   onUserNameChange,
   onOpenMasterPin,
+  onOpenTeamModal,
   deferredInstallPrompt,
   onInstallPwa
 }) => {
@@ -55,15 +57,15 @@ export const Navbar: React.FC<NavbarProps> = ({
                 Sincronía
               </h1>
               <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-400 border border-indigo-500/20 hidden sm:inline-block">
-                PWA Realtime
+                PWA Multinivel
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 hidden md:block">Gestión Interactiva de Tareas en Tiempo Real</p>
+            <p className="text-[11px] text-slate-400 hidden md:block">Delegación de Tareas & Sub-colaboradores</p>
           </div>
         </div>
 
         {/* User Controls & Role Toggle */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 sm:gap-3">
           
           {/* Live Sync Status */}
           <div className="hidden lg:flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-950/60 border border-emerald-500/30 text-emerald-400 text-xs font-medium">
@@ -93,42 +95,66 @@ export const Navbar: React.FC<NavbarProps> = ({
             ) : (
               <button
                 onClick={() => setIsEditingName(true)}
-                className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/60 hover:border-slate-600 px-3 py-1.5 rounded-xl text-xs text-slate-200 transition-all"
+                className="flex items-center gap-1.5 bg-slate-800/80 border border-slate-700/60 hover:border-slate-600 px-2.5 py-1.5 rounded-xl text-xs text-slate-200 transition-all"
                 title="Haz clic para cambiar tu nombre de usuario"
               >
                 <div className="w-5 h-5 rounded-full bg-gradient-to-tr from-indigo-500 to-purple-500 text-white flex items-center justify-center font-bold text-[10px]">
                   {userName.charAt(0).toUpperCase()}
                 </div>
-                <span className="font-medium max-w-[90px] truncate">{userName}</span>
+                <span className="font-medium max-w-[90px] truncate hidden sm:inline">{userName}</span>
               </button>
             )}
           </div>
 
-          {/* Role Switcher */}
+          {/* Hierarchical Role Switcher */}
           <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800">
             <button
               onClick={() => onRoleChange('leader')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
                 userRole === 'leader'
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md shadow-indigo-600/30'
+                  ? 'bg-purple-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-white'
               }`}
+              title="Líder del Proyecto"
             >
-              <Shield className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Líder</span>
+              <span>👑</span>
+              <span className="hidden sm:inline">Jefe</span>
             </button>
             <button
-              onClick={() => onRoleChange('collaborator')}
-              className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                userRole === 'collaborator'
-                  ? 'bg-gradient-to-r from-cyan-600 to-blue-600 text-white shadow-md shadow-cyan-600/30'
+              onClick={() => onRoleChange('manager')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                userRole === 'manager'
+                  ? 'bg-indigo-600 text-white shadow-md'
                   : 'text-slate-400 hover:text-white'
               }`}
+              title="Encargado Principal"
             >
-              <UserCheck className="w-3.5 h-3.5" />
-              <span className="hidden sm:inline">Colaborador</span>
+              <span>👔</span>
+              <span className="hidden sm:inline">Encargado</span>
+            </button>
+            <button
+              onClick={() => onRoleChange('subcollaborator')}
+              className={`flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold transition-all ${
+                userRole === 'subcollaborator'
+                  ? 'bg-cyan-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+              title="Sub-colaborador"
+            >
+              <span>👷</span>
+              <span className="hidden sm:inline">Sub-colab</span>
             </button>
           </div>
+
+          {/* Team & Subcollaborators Management */}
+          <button
+            onClick={onOpenTeamModal}
+            className="flex items-center gap-1 p-2 rounded-xl bg-slate-800/60 border border-slate-700/60 text-slate-300 hover:text-indigo-400 hover:border-indigo-500/50 transition-all text-xs font-medium"
+            title="Invitar & Gestionar Sub-colaboradores"
+          >
+            <Users className="w-4 h-4 text-indigo-400" />
+            <span className="hidden lg:inline">Equipo</span>
+          </button>
 
           {/* Master PIN Settings */}
           <button

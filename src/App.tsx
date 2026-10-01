@@ -4,34 +4,38 @@ import { ProjectSelector } from './components/ProjectSelector';
 import { TaskBoard } from './components/TaskBoard';
 import { ActivityFeed } from './components/ActivityFeed';
 import { PinLockModal } from './components/PinLockModal';
+import { TeamModal } from './components/TeamModal';
 import { InstallPwaBanner } from './components/InstallPwaBanner';
-import { Project, Task, ActivityLog, UserRole } from './types';
+import { Project, Task, SubTask, TeamMember, ActivityLog, UserRole } from './types';
 import { 
   getProjects, saveProjects, 
   getTasks, saveTasks, 
+  getTeamMembers, saveTeamMembers,
   getLogs, addLog, 
   getMasterPin, setMasterPin 
 } from './services/storage';
 import { broadcastSync, subscribeToSync } from './services/realtime';
-import { KeyRound, ShieldAlert, Sparkles, CheckCircle, Smartphone } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 
 export const App: React.FC = () => {
   // Application Data State
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
   const [logs, setLogs] = useState<ActivityLog[]>([]);
 
   // Active Context & Role
-  const [userRole, setUserRole] = useState<UserRole>('collaborator');
-  const [userName, setUserName] = useState<string>('Juan Colaborador');
+  const [userRole, setUserRole] = useState<UserRole>('manager');
+  const [userName, setUserName] = useState<string>('Martín G. (Encargado)');
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
 
   // Security Lock State
   const [unlockedProjects, setUnlockedProjects] = useState<Record<string, boolean>>({});
   const [pendingLockProject, setPendingLockProject] = useState<Project | null>(null);
   
-  // Master PIN Config Modal
+  // Modals
   const [isChangingMasterPin, setIsChangingMasterPin] = useState(false);
+  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
   const [newMasterPinInput, setNewMasterPinInput] = useState('');
 
   // PWA Install Prompt
@@ -41,10 +45,12 @@ export const App: React.FC = () => {
   useEffect(() => {
     const loadedProjects = getProjects();
     const loadedTasks = getTasks();
+    const loadedMembers = getTeamMembers();
     const loadedLogs = getLogs();
 
     setProjects(loadedProjects);
     setTasks(loadedTasks);
+    setTeamMembers(loadedMembers);
     setLogs(loadedLogs);
 
     if (loadedProjects.length > 0) {
@@ -54,10 +60,10 @@ export const App: React.FC = () => {
 
   // Listen for Realtime Sync events from other tabs or devices
   useEffect(() => {
-    const unsubscribe = subscribeToSync((payload) => {
-      // Reload fresh data on any broadcast sync
+    const unsubscribe = subscribeToSync(() => {
       setProjects(getProjects());
       setTasks(getTasks());
+      setTeamMembers(getTeamMembers());
       setLogs(getLogs());
     });
     return () => unsubscribe();
@@ -82,7 +88,7 @@ export const App: React.FC = () => {
     }
   };
 
-  // Select project handler (triggers PIN / Face ID unlock if not unlocked yet)
+  // Select project handler
   const handleSelectProject = (project: Project) => {
     if (unlockedProjects[project.id]) {
       setActiveProjectId(project.id);
@@ -114,7 +120,6 @@ export const App: React.FC = () => {
     setProjects(updatedProjects);
     saveProjects(updatedProjects);
     
-    // Auto-unlock project created by current leader
     setUnlockedProjects(prev => ({ ...prev, [newProj.id]: true }));
     setActiveProjectId(newProj.id);
 
@@ -125,23 +130,48 @@ export const App: React.FC = () => {
     });
   };
 
+  // Add Member / Subcollaborator
+  const handleAddMember = (name: string, role: UserRole) => {
+    if (!activeProjectId) return;
+    const newMember: TeamMember = {
+      id: 'mem-' + Date.now(),
+      projectId: activeProjectId,
+      name,
+      role,
+      invitedBy: userName,
+      createdAt: new Date().toISOString()
+    };
+    const updated = [...teamMembers, newMember];
+    setTeamMembers(updated);
+    saveTeamMembers(updated);
+
+    addLog({
+      projectId: activeProjectId,
+      userName,
+      userRole,
+      action: `agregó al equipo a ${name}`,
+      taskTitle: role === 'subcollaborator' ? 'Sub-colaborador' : 'Encargado'
+    });
+    setLogs(getLogs());
+  };
+
   // Add Task (Leader)
   const handleAddTask = (newTaskData: Omit<Task, 'id' | 'createdAt'>) => {
     const newTask: Task = {
       ...newTaskData,
       id: 'task-' + Date.now(),
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      subtasks: []
     };
     const updatedTasks = [newTask, ...tasks];
     setTasks(updatedTasks);
     saveTasks(updatedTasks);
 
-    // Log & Broadcast
-    const newLog = addLog({
+    addLog({
       projectId: newTask.projectId,
       userName,
       userRole,
-      action: 'agregó nuevo objetivo',
+      action: 'creó nuevo objetivo principal',
       taskTitle: newTask.title
     });
     setLogs(getLogs());
@@ -152,6 +182,51 @@ export const App: React.FC = () => {
       taskTitle: newTask.title,
       userName
     });
+  };
+
+  // Add SubTask (Leader / Encargado)
+  const handleAddSubTask = (parentTaskId: string, title: string, assignedTo: string) => {
+    const updatedTasks = tasks.map(t => {
+      if (t.id === parentTaskId) {
+        const newSub: SubTask = {
+          id: 'sub-' + Date.now(),
+          parentTaskId,
+          title,
+          assignedTo,
+          completed: false,
+          completedBy: null,
+          completedAt: null,
+          createdAt: new Date().toISOString()
+        };
+        return {
+          ...t,
+          subtasks: [...(t.subtasks || []), newSub]
+        };
+      }
+      return t;
+    });
+
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
+
+    const parent = tasks.find(t => t.id === parentTaskId);
+    if (parent && activeProjectId) {
+      addLog({
+        projectId: activeProjectId,
+        userName,
+        userRole,
+        action: `delegó sub-tarea a ${assignedTo}`,
+        taskTitle: title
+      });
+      setLogs(getLogs());
+
+      broadcastSync({
+        type: 'TASK_CREATED',
+        projectId: activeProjectId,
+        taskTitle: `${title} (Delegada)`,
+        userName
+      });
+    }
   };
 
   // Toggle Task Completion (100%)
@@ -194,6 +269,62 @@ export const App: React.FC = () => {
     }
   };
 
+  // Toggle SubTask Completion (100%)
+  const handleToggleSubTask = (parentTaskId: string, subTaskId: string, completed: boolean) => {
+    const updatedTasks = tasks.map(t => {
+      if (t.id === parentTaskId) {
+        const updatedSubs = (t.subtasks || []).map(s => {
+          if (s.id === subTaskId) {
+            return {
+              ...s,
+              completed,
+              completedBy: completed ? userName : null,
+              completedAt: completed ? new Date().toISOString() : null
+            };
+          }
+          return s;
+        });
+
+        // Check if all subtasks are complete
+        const allSubsComplete = updatedSubs.length > 0 && updatedSubs.every(s => s.completed);
+
+        return {
+          ...t,
+          subtasks: updatedSubs,
+          // Auto-mark parent complete if all subtasks completed
+          completed: allSubsComplete ? true : t.completed,
+          completedBy: allSubsComplete ? (t.completedBy || userName) : t.completedBy,
+          completedAt: allSubsComplete ? (t.completedAt || new Date().toISOString()) : t.completedAt
+        };
+      }
+      return t;
+    });
+
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
+
+    const parent = tasks.find(t => t.id === parentTaskId);
+    const targetSub = parent?.subtasks?.find(s => s.id === subTaskId);
+    if (parent && targetSub) {
+      addLog({
+        projectId: parent.projectId,
+        userName,
+        userRole,
+        action: completed ? 'completó sub-tarea al 100%' : 'reabrió sub-tarea',
+        taskTitle: targetSub.title
+      });
+      setLogs(getLogs());
+
+      broadcastSync({
+        type: 'TASK_UPDATED',
+        projectId: parent.projectId,
+        taskTitle: targetSub.title,
+        completed,
+        userName
+      });
+    }
+  };
+
   // Delete Task
   const handleDeleteTask = (taskId: string) => {
     const targetTask = tasks.find(t => t.id === taskId);
@@ -210,17 +341,9 @@ export const App: React.FC = () => {
         taskTitle: targetTask.title
       });
       setLogs(getLogs());
-
-      broadcastSync({
-        type: 'TASK_DELETED',
-        projectId: targetTask.projectId,
-        taskTitle: targetTask.title,
-        userName
-      });
     }
   };
 
-  // Handle Master PIN change
   const handleSaveMasterPin = () => {
     if (newMasterPinInput.length === 4) {
       setMasterPin(newMasterPinInput);
@@ -231,6 +354,7 @@ export const App: React.FC = () => {
 
   const activeProject = projects.find(p => p.id === activeProjectId);
   const activeTasks = tasks.filter(t => t.projectId === activeProjectId);
+  const activeMembers = teamMembers.filter(m => m.projectId === activeProjectId);
   const activeLogs = logs.filter(l => l.projectId === activeProjectId);
 
   return (
@@ -242,12 +366,13 @@ export const App: React.FC = () => {
         userName={userName}
         onRoleChange={(role) => {
           setUserRole(role);
-          if (role === 'leader' && userName.includes('Colaborador')) {
-            setUserName('Jefe de Proyecto');
-          }
+          if (role === 'leader') setUserName('Carlos V. (Jefe)');
+          else if (role === 'manager') setUserName('Martín G. (Encargado)');
+          else setUserName('Esteban K. (Sub-colaborador)');
         }}
         onUserNameChange={setUserName}
         onOpenMasterPin={() => setIsChangingMasterPin(true)}
+        onOpenTeamModal={() => setIsTeamModalOpen(true)}
         deferredInstallPrompt={deferredInstallPrompt}
         onInstallPwa={handleInstallPwa}
       />
@@ -276,21 +401,25 @@ export const App: React.FC = () => {
         {activeProject && (
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pt-4 border-t border-slate-800/80">
             
-            {/* Task Board (2 columns wide on desktop) */}
+            {/* Task Board */}
             <div className="lg:col-span-2">
               <TaskBoard
                 project={activeProject}
                 tasks={activeTasks}
+                teamMembers={activeMembers}
                 userRole={userRole}
                 userName={userName}
                 onAddTask={handleAddTask}
                 onToggleTask={handleToggleTask}
+                onAddSubTask={handleAddSubTask}
+                onToggleSubTask={handleToggleSubTask}
                 onDeleteTask={handleDeleteTask}
                 onLockProject={() => handleLockProject(activeProject.id)}
+                onOpenTeamModal={() => setIsTeamModalOpen(true)}
               />
             </div>
 
-            {/* Realtime Activity Stream (1 column wide on desktop) */}
+            {/* Realtime Activity Stream */}
             <div className="lg:col-span-1 space-y-6">
               <ActivityFeed logs={activeLogs} />
             </div>
@@ -309,6 +438,20 @@ export const App: React.FC = () => {
           allowBiometrics={pendingLockProject.biometricRequired}
           onSuccess={handleUnlockSuccess}
           onClose={() => setPendingLockProject(null)}
+        />
+      )}
+
+      {/* Team Management Modal */}
+      {activeProject && (
+        <TeamModal
+          isOpen={isTeamModalOpen}
+          projectId={activeProject.id}
+          projectName={activeProject.name}
+          currentUserRole={userRole}
+          currentUserName={userName}
+          members={activeMembers}
+          onAddMember={handleAddMember}
+          onClose={() => setIsTeamModalOpen(false)}
         />
       )}
 

@@ -1,43 +1,64 @@
 import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { 
-  CheckCircle2, Circle, Plus, Shield, Lock, Fingerprint, 
-  Trash2, MessageSquare, AlertTriangle, Sparkles, Filter, 
-  Clock, UserCheck, Flame
+  CheckCircle2, Circle, Plus, Shield, Lock, 
+  Trash2, MessageSquare, Sparkles, UserCheck, 
+  CornerDownRight, Users, ChevronDown, ChevronRight, UserPlus
 } from 'lucide-react';
-import { Project, Task, UserRole, Priority } from '../types';
+import { Project, Task, SubTask, TeamMember, UserRole, Priority } from '../types';
 
 interface TaskBoardProps {
   project: Project;
   tasks: Task[];
+  teamMembers: TeamMember[];
   userRole: UserRole;
   userName: string;
   onAddTask: (task: Omit<Task, 'id' | 'createdAt'>) => void;
   onToggleTask: (taskId: string, completed: boolean, note?: string) => void;
+  onAddSubTask: (parentTaskId: string, title: string, assignedTo: string) => void;
+  onToggleSubTask: (parentTaskId: string, subTaskId: string, completed: boolean) => void;
   onDeleteTask: (taskId: string) => void;
   onLockProject: () => void;
+  onOpenTeamModal: () => void;
 }
 
 export const TaskBoard: React.FC<TaskBoardProps> = ({
   project,
   tasks,
+  teamMembers,
   userRole,
   userName,
   onAddTask,
   onToggleTask,
+  onAddSubTask,
+  onToggleSubTask,
   onDeleteTask,
-  onLockProject
+  onLockProject,
+  onOpenTeamModal
 }) => {
   const [filter, setFilter] = useState<'all' | 'pending' | 'completed'>('all');
   const [isAddingTask, setIsAddingTask] = useState(false);
+  
+  // New Parent Task Form State
   const [newTitle, setNewTitle] = useState('');
   const [newDescription, setNewDescription] = useState('');
   const [newAssignee, setNewAssignee] = useState('');
   const [newPriority, setNewPriority] = useState<Priority>('media');
 
+  // Sub-task Inline Form State
+  const [addingSubTaskForId, setAddingSubTaskForId] = useState<string | null>(null);
+  const [subTaskTitle, setSubTaskTitle] = useState('');
+  const [subTaskAssignee, setSubTaskAssignee] = useState('');
+
+  // Expanded subtasks collapsible state
+  const [expandedTasks, setExpandedTasks] = useState<Record<string, boolean>>({});
+
   // Task note modal state
   const [noteModalTask, setNoteModalTask] = useState<Task | null>(null);
   const [taskNoteText, setTaskNoteText] = useState('');
+
+  const managersList = teamMembers.filter(m => m.role === 'manager' || m.role === 'leader');
+  const subcollabsList = teamMembers.filter(m => m.role === 'subcollaborator');
 
   const completedCount = tasks.filter(t => t.completed).length;
   const totalCount = tasks.length;
@@ -49,6 +70,10 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     return true;
   });
 
+  const toggleExpand = (taskId: string) => {
+    setExpandedTasks(prev => ({ ...prev, [taskId]: !prev[taskId] }));
+  };
+
   const handleCreateTask = (e: React.FormEvent) => {
     e.preventDefault();
     if (!newTitle.trim()) return;
@@ -57,7 +82,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       projectId: project.id,
       title: newTitle.trim(),
       description: newDescription.trim() || undefined,
-      assignedTo: newAssignee.trim() || userName,
+      assignedTo: newAssignee.trim() || (managersList[0]?.name || userName),
       priority: newPriority,
       completed: false,
       completedBy: null,
@@ -70,14 +95,29 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     setIsAddingTask(false);
   };
 
+  const handleCreateSubTask = (parentTaskId: string, e: React.FormEvent) => {
+    e.preventDefault();
+    if (!subTaskTitle.trim()) return;
+
+    onAddSubTask(
+      parentTaskId,
+      subTaskTitle.trim(),
+      subTaskAssignee.trim() || (subcollabsList[0]?.name || 'Sub-colaborador')
+    );
+
+    setSubTaskTitle('');
+    setSubTaskAssignee('');
+    setAddingSubTaskForId(null);
+    setExpandedTasks(prev => ({ ...prev, [parentTaskId]: true }));
+  };
+
   const handleCheckTask = (task: Task) => {
     const nextCompletedState = !task.completed;
 
     if (nextCompletedState) {
-      // Trigger celebration confetti on task 100% completion
       try {
         confetti({
-          particleCount: 75,
+          particleCount: 80,
           spread: 70,
           origin: { y: 0.6 },
           colors: ['#6366f1', '#38bdf8', '#a855f7', '#34d399']
@@ -88,6 +128,23 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
     }
 
     onToggleTask(task.id, nextCompletedState);
+  };
+
+  const handleCheckSubTask = (parentTaskId: string, subTask: SubTask) => {
+    const nextCompleted = !subTask.completed;
+    if (nextCompleted) {
+      try {
+        confetti({
+          particleCount: 40,
+          spread: 50,
+          origin: { y: 0.7 },
+          colors: ['#38bdf8', '#34d399']
+        });
+      } catch (e) {
+        console.log(e);
+      }
+    }
+    onToggleSubTask(parentTaskId, subTask.id, nextCompleted);
   };
 
   const handleSaveNote = () => {
@@ -104,7 +161,6 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
       {/* Project Header Card */}
       <div className="rounded-3xl bg-slate-900/80 border border-slate-800 p-6 shadow-xl backdrop-blur-md relative overflow-hidden">
         
-        {/* Glowing Background Accent */}
         <div className="absolute -top-24 -right-24 w-60 h-60 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none" />
 
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -114,25 +170,33 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
               <button
                 onClick={onLockProject}
                 className="flex items-center gap-1 text-xs px-2.5 py-1 rounded-full bg-slate-800 border border-slate-700 text-slate-300 hover:border-indigo-500 hover:text-indigo-400 transition-all"
-                title="Re-bloquear este proyecto"
               >
                 <Lock className="w-3.5 h-3.5 text-indigo-400" />
-                <span>Bloqueado (PIN {project.pin})</span>
+                <span>PIN {project.pin}</span>
               </button>
             </div>
             <p className="text-sm text-slate-400 max-w-2xl">{project.description}</p>
           </div>
 
-          {/* Leader actions */}
-          {userRole === 'leader' && (
+          <div className="flex items-center gap-2">
             <button
-              onClick={() => setIsAddingTask(true)}
-              className="flex items-center justify-center gap-2 px-4 py-2.5 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-sm shadow-lg shadow-indigo-600/30 hover:scale-105 active:scale-95 transition-all self-start md:self-auto"
+              onClick={onOpenTeamModal}
+              className="flex items-center gap-1.5 px-3.5 py-2 rounded-2xl bg-slate-800 border border-slate-700 text-slate-200 font-semibold text-xs hover:border-indigo-500/50 hover:text-indigo-300 transition-all"
             >
-              <Plus className="w-4 h-4" />
-              <span>Nuevo Objetivo</span>
+              <Users className="w-4 h-4 text-indigo-400" />
+              <span>Gestionar Equipo</span>
             </button>
-          )}
+
+            {userRole === 'leader' && (
+              <button
+                onClick={() => setIsAddingTask(true)}
+                className="flex items-center justify-center gap-2 px-4 py-2 rounded-2xl bg-gradient-to-r from-indigo-600 to-purple-600 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 hover:scale-105 active:scale-95 transition-all"
+              >
+                <Plus className="w-4 h-4" />
+                <span>Nuevo Objetivo</span>
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Global Progress Bar */}
@@ -155,14 +219,14 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           </div>
 
           <div className="flex justify-between items-center text-[11px] text-slate-400 pt-1">
-            <span>{completedCount} de {totalCount} tareas finalizadas 100%</span>
-            <span>{totalCount - completedCount} tareas pendientes</span>
+            <span>{completedCount} de {totalCount} objetivos principales finalizados</span>
+            <span>{totalCount - completedCount} objetivos pendientes</span>
           </div>
         </div>
 
       </div>
 
-      {/* Filter Tabs */}
+      {/* Filter Tabs & Active Role Banner */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div className="flex items-center gap-2 bg-slate-900 p-1 rounded-2xl border border-slate-800">
           <button
@@ -197,19 +261,21 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
           </button>
         </div>
 
-        <div className="text-xs text-slate-400 flex items-center gap-1.5 bg-slate-900/50 px-3 py-1.5 rounded-xl border border-slate-800">
+        <div className="text-xs text-slate-400 flex items-center gap-1.5 bg-slate-900/60 px-3 py-1.5 rounded-xl border border-slate-800">
           <UserCheck className="w-3.5 h-3.5 text-cyan-400" />
-          <span>Modo interactivo activo como: <strong className="text-slate-200">{userName}</strong> ({userRole === 'leader' ? 'Líder' : 'Colaborador'})</span>
+          <span>Modo interactivo: <strong className="text-slate-200">{userName}</strong> ({
+            userRole === 'leader' ? '👑 Jefe de Proyecto' : userRole === 'manager' ? '👔 Encargado' : '👷 Sub-colaborador'
+          })</span>
         </div>
       </div>
 
-      {/* Add Task Form Modal / Inline */}
+      {/* Form modal to add parent objective */}
       {isAddingTask && (
         <form onSubmit={handleCreateTask} className="rounded-3xl bg-slate-900 border border-indigo-500/40 p-6 space-y-4 shadow-2xl animate-fade-in">
           <div className="flex justify-between items-center">
-            <h3 className="text-lg font-bold text-white flex items-center gap-2">
+            <h3 className="text-base font-bold text-white flex items-center gap-2">
               <Plus className="w-5 h-5 text-indigo-400" />
-              Agregar Nuevo Objetivo / Tarea al Proyecto
+              Crear Nuevo Objetivo Principal (Jefe de Proyecto)
             </h3>
             <button
               type="button"
@@ -234,10 +300,10 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Asignar A (Colaborador)</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Asignar A Encargado Principal</label>
               <input
                 type="text"
-                placeholder="Ej. Sofía L."
+                placeholder="Ej. Martín G. (Encargado)"
                 value={newAssignee}
                 onChange={(e) => setNewAssignee(e.target.value)}
                 className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
@@ -258,7 +324,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             </div>
 
             <div className="md:col-span-2">
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Instrucciones o Descripción</label>
+              <label className="block text-xs font-semibold text-slate-300 mb-1">Descripción / Instrucciones</label>
               <textarea
                 placeholder="Detalles sobre lo que se requiere para considerar la tarea lista..."
                 value={newDescription}
@@ -279,7 +345,7 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 hover:bg-indigo-500"
+              className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs shadow-lg hover:bg-indigo-500"
             >
               Guardar Objetivo
             </button>
@@ -287,172 +353,242 @@ export const TaskBoard: React.FC<TaskBoardProps> = ({
         </form>
       )}
 
-      {/* Task List */}
-      <div className="space-y-3">
+      {/* Hierarchical Task List */}
+      <div className="space-y-4">
         {filteredTasks.length === 0 ? (
           <div className="rounded-3xl bg-slate-900/40 border border-slate-800/80 p-12 text-center">
             <CheckCircle2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
             <h4 className="text-base font-bold text-slate-300">No hay tareas en esta vista</h4>
-            <p className="text-xs text-slate-500 max-w-sm mx-auto mt-1">
-              {filter === 'completed' 
-                ? 'Ninguna tarea ha sido marcada como completada aún.' 
-                : 'El listado de objetivos está al día.'}
-            </p>
           </div>
         ) : (
           filteredTasks.map((task) => {
+            const subtasks = task.subtasks || [];
+            const subCompleted = subtasks.filter(s => s.completed).length;
+            const subTotal = subtasks.length;
+            const isExpanded = expandedTasks[task.id] !== false; // expanded by default
+
             return (
               <div
                 key={task.id}
-                className={`group rounded-2xl border p-4 transition-all duration-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 ${
+                className={`rounded-3xl border transition-all duration-200 overflow-hidden ${
                   task.completed
-                    ? 'bg-slate-950/60 border-emerald-950/50 hover:border-emerald-500/30 text-slate-400'
-                    : 'bg-slate-900/90 border-slate-800 hover:border-indigo-500/40 text-white shadow-md'
+                    ? 'bg-slate-950/60 border-emerald-950/50'
+                    : 'bg-slate-900/90 border-slate-800 shadow-lg'
                 }`}
               >
                 
-                {/* Left Section: Checkbox & Info */}
-                <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                {/* Parent Task Header Row */}
+                <div className="p-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                   
-                  {/* Interactive Checkbox (100% completed) */}
-                  <button
-                    onClick={() => handleCheckTask(task)}
-                    className="mt-0.5 flex-shrink-0 transition-transform active:scale-90"
-                    title={task.completed ? 'Marcar como pendiente' : 'Tildar como 100% terminada'}
-                  >
-                    {task.completed ? (
-                      <CheckCircle2 className="w-6 h-6 text-emerald-400 transition-all duration-300" />
-                    ) : (
-                      <Circle className="w-6 h-6 text-slate-500 group-hover:text-indigo-400 transition-all duration-300" />
-                    )}
-                  </button>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-center gap-2 flex-wrap mb-1">
-                      <h4 className={`text-base font-bold tracking-tight ${task.completed ? 'line-through text-slate-500' : 'text-slate-100'}`}>
-                        {task.title}
-                      </h4>
-
-                      {/* Priority Badge */}
-                      <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
-                        task.priority === 'alta'
-                          ? 'bg-red-500/10 text-red-400 border border-red-500/20'
-                          : task.priority === 'media'
-                          ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
-                          : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
-                      }`}>
-                        {task.priority}
-                      </span>
-
-                      {/* Completed 100% Badge */}
-                      {task.completed && (
-                        <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" />
-                          100% Terminada
-                        </span>
+                  <div className="flex items-start gap-3.5 flex-1 min-w-0">
+                    
+                    {/* Parent Checkbox (100% completed) */}
+                    <button
+                      onClick={() => handleCheckTask(task)}
+                      className="mt-0.5 flex-shrink-0 transition-transform active:scale-90"
+                      title={task.completed ? 'Marcar como pendiente' : 'Tildar como 100% terminada por el Encargado'}
+                    >
+                      {task.completed ? (
+                        <CheckCircle2 className="w-6 h-6 text-emerald-400" />
+                      ) : (
+                        <Circle className="w-6 h-6 text-slate-500 hover:text-indigo-400" />
                       )}
+                    </button>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 flex-wrap mb-1">
+                        <h4 className={`text-base font-bold tracking-tight ${task.completed ? 'line-through text-slate-500' : 'text-slate-100'}`}>
+                          {task.title}
+                        </h4>
+
+                        <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full uppercase ${
+                          task.priority === 'alta'
+                            ? 'bg-red-500/10 text-red-400 border border-red-500/20'
+                            : task.priority === 'media'
+                            ? 'bg-amber-500/10 text-amber-400 border border-amber-500/20'
+                            : 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
+                        }`}>
+                          {task.priority}
+                        </span>
+
+                        {subTotal > 0 && (
+                          <span className="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-indigo-500/10 text-indigo-300 border border-indigo-500/20 flex items-center gap-1">
+                            <span>Sub-tareas: {subCompleted}/{subTotal}</span>
+                          </span>
+                        )}
+
+                        {task.completed && (
+                          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                            100% Terminada
+                          </span>
+                        )}
+                      </div>
+
+                      {task.description && (
+                        <p className={`text-xs mb-2 ${task.completed ? 'text-slate-600' : 'text-slate-400'}`}>
+                          {task.description}
+                        </p>
+                      )}
+
+                      <div className="flex items-center gap-4 text-[11px] text-slate-500 flex-wrap">
+                        <span>Encargado: <strong className="text-slate-300">{task.assignedTo}</strong></span>
+                        {task.completedBy && <span className="text-emerald-400">✓ Completada por {task.completedBy}</span>}
+                      </div>
+
                     </div>
 
-                    {task.description && (
-                      <p className={`text-xs mb-2 ${task.completed ? 'text-slate-600' : 'text-slate-400'}`}>
-                        {task.description}
-                      </p>
+                  </div>
+
+                  {/* Actions Right */}
+                  <div className="flex items-center gap-2 self-end sm:self-center">
+                    
+                    {/* Delegate Sub-task Button (Leader or Encargado) */}
+                    {(userRole === 'leader' || userRole === 'manager') && (
+                      <button
+                        onClick={() => {
+                          setAddingSubTaskForId(task.id);
+                          setExpandedTasks(prev => ({ ...prev, [task.id]: true }));
+                        }}
+                        className="px-3 py-1.5 rounded-xl bg-indigo-500/10 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/20 text-xs font-semibold flex items-center gap-1.5"
+                        title="Delegar sub-tarea a un Sub-colaborador"
+                      >
+                        <UserPlus className="w-3.5 h-3.5" />
+                        <span>Delegar Sub-tarea</span>
+                      </button>
                     )}
 
-                    {/* Metadata Footer */}
-                    <div className="flex items-center gap-4 text-[11px] text-slate-500 flex-wrap">
-                      <span>Asignado a: <strong className="text-slate-300">{task.assignedTo}</strong></span>
+                    {/* Expand / Collapse Subtasks */}
+                    {subTotal > 0 && (
+                      <button
+                        onClick={() => toggleExpand(task.id)}
+                        className="p-1.5 rounded-xl bg-slate-800 text-slate-400 hover:text-white text-xs flex items-center gap-1"
+                      >
+                        {isExpanded ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </button>
+                    )}
 
-                      {task.completed && task.completedBy && (
-                        <span className="text-emerald-400/90 font-medium">
-                          ✓ Completada por {task.completedBy}
-                        </span>
-                      )}
-
-                      {task.note && (
-                        <button
-                          onClick={() => {
-                            setNoteModalTask(task);
-                            setTaskNoteText(task.note || '');
-                          }}
-                          className="flex items-center gap-1 text-indigo-400 hover:underline"
-                        >
-                          <MessageSquare className="w-3 h-3" />
-                          <span>Ver Nota</span>
-                        </button>
-                      )}
-                    </div>
+                    {userRole === 'leader' && (
+                      <button
+                        onClick={() => onDeleteTask(task.id)}
+                        className="p-2 rounded-xl bg-slate-800/60 text-slate-400 hover:text-red-400"
+                        title="Eliminar"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
 
                   </div>
 
                 </div>
 
-                {/* Right Actions */}
-                <div className="flex items-center gap-2 self-end sm:self-center">
-                  
-                  {/* Add Note Button */}
-                  <button
-                    onClick={() => {
-                      setNoteModalTask(task);
-                      setTaskNoteText(task.note || '');
-                    }}
-                    className="p-2 rounded-xl bg-slate-800/60 text-slate-400 hover:text-indigo-400 hover:bg-slate-800 transition-all text-xs flex items-center gap-1"
-                    title="Agregar o editar nota de la tarea"
+                {/* Sub-task Inline Addition Form */}
+                {addingSubTaskForId === task.id && (
+                  <form
+                    onSubmit={(e) => handleCreateSubTask(task.id, e)}
+                    className="mx-5 mb-4 p-4 rounded-2xl bg-slate-950 border border-indigo-500/40 space-y-3"
                   >
-                    <MessageSquare className="w-4 h-4" />
-                  </button>
+                    <div className="flex justify-between items-center">
+                      <span className="text-xs font-bold text-indigo-300 flex items-center gap-1.5">
+                        <CornerDownRight className="w-4 h-4 text-indigo-400" />
+                        Delegar Sub-tarea a Sub-colaborador
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setAddingSubTaskForId(null)}
+                        className="text-xs text-slate-500 hover:text-white"
+                      >
+                        Cancelar
+                      </button>
+                    </div>
 
-                  {/* Delete Task Button (Leader or Admin) */}
-                  {userRole === 'leader' && (
-                    <button
-                      onClick={() => onDeleteTask(task.id)}
-                      className="p-2 rounded-xl bg-slate-800/60 text-slate-400 hover:text-red-400 hover:bg-slate-800 transition-all"
-                      title="Eliminar objetivo"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Nombre de la sub-tarea..."
+                          value={subTaskTitle}
+                          onChange={(e) => setSubTaskTitle(e.target.value)}
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                          required
+                        />
+                      </div>
+                      <div>
+                        <input
+                          type="text"
+                          placeholder="Asignar a Sub-colaborador (ej. Esteban K.)"
+                          value={subTaskAssignee}
+                          onChange={(e) => setSubTaskAssignee(e.target.value)}
+                          className="w-full px-3.5 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500"
+                        />
+                      </div>
+                    </div>
 
-                </div>
+                    <div className="flex justify-end gap-2 pt-1">
+                      <button
+                        type="submit"
+                        className="px-4 py-1.5 rounded-xl bg-indigo-600 text-white font-semibold text-xs hover:bg-indigo-500"
+                      >
+                        Asignar Sub-tarea
+                      </button>
+                    </div>
+                  </form>
+                )}
+
+                {/* Sub-tasks Nested List */}
+                {isExpanded && subtasks.length > 0 && (
+                  <div className="bg-slate-950/70 border-t border-slate-800/80 p-4 space-y-2 pl-6 sm:pl-10">
+                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-2">
+                      Sub-tareas Delegadas ({subCompleted}/{subTotal} completadas):
+                    </span>
+
+                    {subtasks.map((sub) => (
+                      <div
+                        key={sub.id}
+                        className={`flex items-center justify-between p-3 rounded-2xl border transition-all text-xs ${
+                          sub.completed
+                            ? 'bg-slate-900/40 border-emerald-950/40 text-slate-400'
+                            : 'bg-slate-900 border-slate-800/90 text-slate-200'
+                        }`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <button
+                            onClick={() => handleCheckSubTask(task.id, sub)}
+                            className="transition-transform active:scale-90"
+                            title={sub.completed ? 'Marcar como pendiente' : 'Tildar sub-tarea al 100%'}
+                          >
+                            {sub.completed ? (
+                              <CheckCircle2 className="w-5 h-5 text-emerald-400" />
+                            ) : (
+                              <Circle className="w-5 h-5 text-slate-500 hover:text-cyan-400" />
+                            )}
+                          </button>
+
+                          <div>
+                            <span className={`font-semibold ${sub.completed ? 'line-through text-slate-500' : 'text-slate-100'}`}>
+                              {sub.title}
+                            </span>
+                            <div className="text-[10px] text-slate-500 flex items-center gap-2 mt-0.5">
+                              <span>Delegado a: <strong className="text-cyan-400">{sub.assignedTo}</strong></span>
+                              {sub.completedBy && <span className="text-emerald-400 font-medium">✓ Completado por {sub.completedBy}</span>}
+                            </div>
+                          </div>
+                        </div>
+
+                        {sub.completed && (
+                          <span className="text-[9px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                            100% Lista
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
 
               </div>
             );
           })
         )}
       </div>
-
-      {/* Task Note Modal */}
-      {noteModalTask && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-sm p-4">
-          <div className="w-full max-w-md rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-2xl">
-            <h3 className="text-lg font-bold text-white mb-2">Nota / Observación de Tarea</h3>
-            <p className="text-xs text-slate-400 mb-4">{noteModalTask.title}</p>
-
-            <textarea
-              value={taskNoteText}
-              onChange={(e) => setTaskNoteText(e.target.value)}
-              placeholder="Escribe comentarios sobre cómo se resolvió esta tarea..."
-              rows={4}
-              className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-indigo-500 resize-none mb-4"
-            />
-
-            <div className="flex justify-end gap-3">
-              <button
-                onClick={() => setNoteModalTask(null)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveNote}
-                className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs shadow-lg shadow-indigo-600/30 hover:bg-indigo-500"
-              >
-                Guardar Nota
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
