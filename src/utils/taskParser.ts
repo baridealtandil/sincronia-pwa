@@ -28,3 +28,32 @@ export const detectTasksFromText = (rawText: string): string[] => {
 
   return tasks;
 };
+
+/**
+ * Smart Name Matcher:
+ * Detects if a task assigned to "Gabriel" or "Gabriel Marcasso" matches a logged-in user like "Gabriel Marcasso".
+ */
+export const isTaskAssignedToUser = (
+  assignedTo: string,
+  userFullName: string,
+  userFirstName: string
+): boolean => {
+  if (!assignedTo || (!userFullName && !userFirstName)) return false;
+
+  const a = assignedTo.trim().toLowerCase();
+  const fn = userFirstName.trim().toLowerCase();
+  const full = userFullName.trim().toLowerCase();
+
+  if (!a) return false;
+
+  // Direct exact match
+  if (a === full || a === fn) return true;
+
+  // Check if assignedTo contains first name or vice versa
+  if (fn && fn.length >= 3 && (a.includes(fn) || fn.includes(a))) return true;
+
+  // Check if assignedTo is inside full name or vice versa
+  if (full && (full.includes(a) || a.includes(full))) return true;
+
+  return false;
+};

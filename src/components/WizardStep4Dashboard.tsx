@@ -2,16 +2,17 @@ import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { 
   CheckCircle2, Eye, Plus, FolderPlus, Clock, 
-  Users, Sparkles, UserCheck, ArrowRightLeft
+  Users, Sparkles, UserCheck, ArrowRightLeft, Bell
 } from 'lucide-react';
 import { Project, Task, AppNotification } from '../types';
+import { isTaskAssignedToUser } from '../utils/taskParser';
 
 interface WizardStep4Props {
   project: Project;
   tasks: Task[];
   notifications: AppNotification[];
-  userRole: 'leader' | 'collaborator';
   userName: string;
+  userFirstName?: string;
   onConfirmReadTask: (taskId: string) => void;
   onCompleteTask: (taskId: string) => void;
   onReassignTask: (taskId: string, newAssignee: string) => void;
@@ -23,8 +24,8 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   project,
   tasks,
   notifications,
-  userRole,
   userName,
+  userFirstName = userName.split(' ')[0] || 'Usuario',
   onConfirmReadTask,
   onCompleteTask,
   onReassignTask,
@@ -42,6 +43,11 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   const completedTasks = tasks.filter(t => t.status === 'completado');
   const readTasks = tasks.filter(t => t.status === 'leido' || t.status === 'completado');
   const unreadTasks = tasks.filter(t => t.status === 'pendiente');
+
+  // User-specific task detection
+  const isMyTask = (t: Task) => isTaskAssignedToUser(t.assignedTo, userName, userFirstName);
+  const myAssignedTasks = tasks.filter(isMyTask);
+  const myUnreadTasks = myAssignedTasks.filter(t => t.status === 'pendiente');
 
   const completedCount = completedTasks.length;
   const readCount = readTasks.length;
@@ -78,7 +84,11 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   };
 
   const filteredTasks = tasks.filter(t => {
-    if (filterPerson !== 'all' && t.assignedTo !== filterPerson) return false;
+    if (filterPerson === 'my_tasks') {
+      if (!isMyTask(t)) return false;
+    } else if (filterPerson !== 'all' && t.assignedTo !== filterPerson) {
+      return false;
+    }
     if (filterStatus === 'unread') return t.status === 'pendiente';
     if (filterStatus === 'read') return t.status === 'leido';
     if (filterStatus === 'completed') return t.status === 'completado';
@@ -90,7 +100,40 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   return (
     <div className="max-w-3xl mx-auto space-y-6 animate-fade-in w-full overflow-hidden">
       
-      {/* 🔔 Latest Activity Toast Banner */}
+      {/* 🔔 Personal Notification Alert for Logged-in User */}
+      {myUnreadTasks.length > 0 && (
+        <div className="p-4 rounded-3xl bg-gradient-to-r from-amber-950/90 via-slate-900 to-orange-950/90 border border-amber-500/40 shadow-2xl space-y-2.5 animate-pulse-glow w-full overflow-hidden">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+            <span className="text-xs font-extrabold text-amber-300 flex items-center gap-1.5">
+              <Bell className="w-4 h-4 text-amber-400 animate-bounce flex-shrink-0" />
+              ¡Atención {userFirstName}! Tienes {myUnreadTasks.length} {myUnreadTasks.length === 1 ? 'tarea asignada' : 'tareas asignadas'} sin leer:
+            </span>
+            <button
+              onClick={() => setFilterPerson('my_tasks')}
+              className="text-[11px] font-bold text-amber-300 hover:underline bg-amber-500/20 px-2.5 py-1 rounded-xl border border-amber-500/40 self-start sm:self-auto"
+            >
+              Ver mis tareas →
+            </button>
+          </div>
+
+          <div className="space-y-1.5 pt-1">
+            {myUnreadTasks.map(t => (
+              <div key={t.id} className="flex items-center justify-between gap-2 p-2.5 rounded-xl bg-slate-950/80 border border-amber-500/30 text-xs text-white">
+                <span className="font-bold truncate max-w-[180px] sm:max-w-xs">{t.title}</span>
+                <button
+                  onClick={() => onConfirmReadTask(t.id)}
+                  className="px-2.5 py-1 rounded-xl bg-cyan-600 hover:bg-cyan-500 text-white font-bold text-[11px] shadow-sm flex items-center gap-1 flex-shrink-0 active:scale-95"
+                >
+                  <Eye className="w-3.5 h-3.5" />
+                  <span>Leído</span>
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* 🔔 Latest Global Activity Toast Banner */}
       {latestNotification && (
         <div className={`p-3.5 rounded-2xl border shadow-xl flex items-center justify-between gap-3 animate-fade-in w-full overflow-hidden ${
           latestNotification.type === 'completed'
@@ -120,31 +163,28 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
             <div className="flex items-center gap-2 mb-1 flex-wrap">
               <h2 className="text-xl sm:text-2xl font-extrabold text-white tracking-tight truncate max-w-full">{project.name}</h2>
               <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 whitespace-nowrap">
-                Tablero Synchro
+                Tablero Colaborativo
               </span>
             </div>
-            <p className="text-xs text-slate-400 truncate">Jefe del Proyecto: <strong className="text-slate-200">{project.leaderName}</strong></p>
+            <p className="text-xs text-slate-400 truncate">Creado por: <strong className="text-slate-200">{project.leaderName}</strong></p>
           </div>
 
+          {/* 100% Collaborative Actions for EVERY user */}
           <div className="flex items-center gap-2 flex-shrink-0">
-            {userRole === 'leader' && (
-              <>
-                <button
-                  onClick={onAddMoreTasksClick}
-                  className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white text-xs font-bold flex items-center gap-1 transition-all"
-                >
-                  <Plus className="w-3.5 h-3.5 text-cyan-400" />
-                  <span>+ Tareas</span>
-                </button>
-                <button
-                  onClick={onNewProjectClick}
-                  className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-xs font-bold flex items-center gap-1 shadow-lg shadow-cyan-600/20 active:scale-95 transition-all"
-                >
-                  <FolderPlus className="w-3.5 h-3.5" />
-                  <span>Nuevo</span>
-                </button>
-              </>
-            )}
+            <button
+              onClick={onAddMoreTasksClick}
+              className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white text-xs font-bold flex items-center gap-1 transition-all active:scale-95"
+            >
+              <Plus className="w-3.5 h-3.5 text-cyan-400" />
+              <span>+ Tareas</span>
+            </button>
+            <button
+              onClick={onNewProjectClick}
+              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-xs font-bold flex items-center gap-1 shadow-lg shadow-cyan-600/20 active:scale-95 transition-all"
+            >
+              <FolderPlus className="w-3.5 h-3.5" />
+              <span>Nuevo</span>
+            </button>
           </div>
         </div>
 
@@ -239,6 +279,19 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
               Todos ({totalTasks})
             </button>
 
+            {myAssignedTasks.length > 0 && (
+              <button
+                onClick={() => setFilterPerson('my_tasks')}
+                className={`px-3 py-1 rounded-xl text-xs font-extrabold transition-all whitespace-nowrap flex-shrink-0 ${
+                  filterPerson === 'my_tasks'
+                    ? 'bg-gradient-to-r from-amber-500 to-orange-500 text-white shadow-md ring-2 ring-amber-500/40'
+                    : 'bg-amber-500/10 text-amber-300 hover:text-white border border-amber-500/30'
+                }`}
+              >
+                🔔 Mis Tareas ({myAssignedTasks.length})
+              </button>
+            )}
+
             {uniqueAssignees.map(name => {
               const personTasks = tasks.filter(t => t.assignedTo === name);
               const personCompleted = personTasks.filter(t => t.status === 'completado').length;
@@ -271,12 +324,15 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
             const isRead = task.status === 'leido' || task.status === 'completado';
             const isCompleted = task.status === 'completado';
             const isReassigningThis = reassigningTaskId === task.id;
+            const assignedToMe = isMyTask(task);
 
             return (
               <div
                 key={task.id}
                 className={`p-4 sm:p-6 rounded-3xl border transition-all space-y-3.5 shadow-xl w-full overflow-hidden ${
-                  isCompleted
+                  assignedToMe && !isCompleted
+                    ? 'bg-slate-900/95 border-amber-500/40 shadow-amber-500/10 ring-1 ring-amber-500/20'
+                    : isCompleted
                     ? 'bg-slate-950/70 border-emerald-950/60 text-slate-400'
                     : isRead
                     ? 'bg-slate-900/90 border-cyan-950/80 shadow-cyan-950/20'
@@ -287,9 +343,16 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <h4 className={`text-sm sm:text-base font-extrabold tracking-tight ${isCompleted ? 'line-through text-slate-500' : 'text-white'}`}>
-                      {task.title}
-                    </h4>
+                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                      <h4 className={`text-sm sm:text-base font-extrabold tracking-tight ${isCompleted ? 'line-through text-slate-500' : 'text-white'}`}>
+                        {task.title}
+                      </h4>
+                      {assignedToMe && (
+                        <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                          📌 Tu Tarea
+                        </span>
+                      )}
+                    </div>
                     
                     <div className="flex items-center gap-2 mt-1 flex-wrap">
                       <p className="text-xs text-cyan-400 font-bold">

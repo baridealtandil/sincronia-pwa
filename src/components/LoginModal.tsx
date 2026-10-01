@@ -4,14 +4,13 @@ import { UserSession } from '../types';
 
 interface LoginModalProps {
   isOpen: boolean;
-  onLogin: (firstName: string, lastName: string, role: 'leader' | 'collaborator') => void;
+  onLogin: (firstName: string, lastName: string) => void;
   onClose?: () => void;
 }
 
 export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onLogin, onClose }) => {
   const [firstName, setFirstName] = useState('');
   const [lastName, setLastName] = useState('');
-  const [role, setRole] = useState<'leader' | 'collaborator'>('collaborator');
 
   if (!isOpen) return null;
 
@@ -19,7 +18,7 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onLogin, onClose
     e.preventDefault();
     if (!firstName.trim() || !lastName.trim()) return;
 
-    onLogin(firstName.trim(), lastName.trim(), role);
+    onLogin(firstName.trim(), lastName.trim());
   };
 
   return (
@@ -67,37 +66,9 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onLogin, onClose
             </div>
           </div>
 
-          <div>
-            <label className="block text-xs font-bold text-slate-200 mb-1.5">Ingresar como:</label>
-            <div className="grid grid-cols-2 gap-2 p-1 bg-slate-950 rounded-2xl border border-slate-800">
-              <button
-                type="button"
-                onClick={() => setRole('leader')}
-                className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  role === 'leader'
-                    ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <span>👑 Jefe</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole('collaborator')}
-                className={`py-2.5 rounded-xl text-xs font-bold flex items-center justify-center gap-1.5 transition-all ${
-                  role === 'collaborator'
-                    ? 'bg-gradient-to-r from-cyan-600 to-emerald-600 text-white shadow-md'
-                    : 'text-slate-400 hover:text-white'
-                }`}
-              >
-                <span>👷 Colaborador</span>
-              </button>
-            </div>
-          </div>
-
           <button
             type="submit"
-            className="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-extrabold text-sm shadow-xl shadow-cyan-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 pt-3"
+            className="w-full py-4 rounded-2xl bg-gradient-to-r from-cyan-600 via-indigo-600 to-purple-600 hover:from-cyan-500 hover:to-purple-500 text-white font-extrabold text-sm shadow-xl shadow-cyan-600/20 flex items-center justify-center gap-2 transition-all active:scale-95 mt-2"
           >
             <LogIn className="w-5 h-5" />
             <span>Ingresar al Sistema</span>

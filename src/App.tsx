@@ -13,6 +13,7 @@ import {
   getTasks, saveTasks, 
   getNotifications, saveNotifications, addNotification 
 } from './services/storage';
+import { isTaskAssignedToUser } from './utils/taskParser';
 
 const USER_SESSION_KEY = 'synchro_user_session_v1';
 const COLLABORATORS_KEY = 'synchro_collaborators_v1';
@@ -30,7 +31,6 @@ export const App: React.FC = () => {
     firstName: '',
     lastName: '',
     fullName: '',
-    role: 'collaborator',
     isLoggedIn: false
   });
   const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
@@ -110,12 +110,11 @@ export const App: React.FC = () => {
     handleSaveCollabsList(updatedCollabs);
   };
 
-  const handleLogin = (firstName: string, lastName: string, role: 'leader' | 'collaborator') => {
+  const handleLogin = (firstName: string, lastName: string) => {
     const session: UserSession = {
       firstName,
       lastName,
       fullName: `${firstName} ${lastName}`,
-      role,
       isLoggedIn: true
     };
     setUserSession(session);
@@ -129,16 +128,12 @@ export const App: React.FC = () => {
     setIsLoginModalOpen(false);
   };
 
-  const activeProject = projects.find(p => p.id === activeProjectId) || null;
-  const activeTasks = tasks.filter(t => t.projectId === activeProjectId);
-  const activeNotifications = notifications.filter(n => n.projectId === activeProjectId);
-
   // Step 1: Create Project
   const handleCreateProject = (name: string, leaderName: string) => {
     const newProj: Project = {
       id: 'proj-' + Date.now(),
       name,
-      leaderName: leaderName || userSession.fullName || 'Líder de Proyecto',
+      leaderName: leaderName || userSession.fullName || 'Creador',
       createdAt: new Date().toISOString()
     };
     const updated = [newProj, ...projects];
@@ -184,6 +179,7 @@ export const App: React.FC = () => {
 
   // Step 3: Assign Task
   const handleAssignTask = (taskId: string, assigneeName: string) => {
+    const targetTask = tasks.find(t => t.id === taskId);
     const updated = tasks.map(t => {
       if (t.id === taskId) {
         return { ...t, assignedTo: assigneeName };
@@ -192,6 +188,16 @@ export const App: React.FC = () => {
     });
     setTasks(updated);
     saveTasks(updated);
+
+    if (targetTask && activeProjectId) {
+      addNotification({
+        projectId: activeProjectId,
+        title: '📥 Tarea Asignada',
+        message: `La tarjeta "${targetTask.title}" fue asignada a ${assigneeName} por ${userSession.fullName || 'el equipo'}`,
+        type: 'info'
+      });
+      setNotifications(getNotifications());
+    }
   };
 
   // Reassign Task to another collaborator
@@ -219,7 +225,7 @@ export const App: React.FC = () => {
       addNotification({
         projectId: activeProjectId,
         title: '🔄 Tarea Reasignada',
-        message: `La tarjeta "${targetTask.title}" fue reasignada de ${targetTask.assignedTo} a ${newAssignee} por ${userSession.fullName}`,
+        message: `La tarjeta "${targetTask.title}" fue reasignada a ${newAssignee} por ${userSession.fullName}`,
         type: 'reassigned'
       });
       setNotifications(getNotifications());
@@ -297,6 +303,12 @@ export const App: React.FC = () => {
     // Simulate smooth network/storage sync feedback
     await new Promise(resolve => setTimeout(resolve, 600));
   };
+  const activeTasks = tasks.filter(t => t.projectId === activeProjectId);
+  const activeNotifications = notifications.filter(n => n.projectId === activeProjectId);
+
+  const myUnreadCount = activeTasks.filter(t => 
+    isTaskAssignedToUser(t.assignedTo, userSession.fullName, userSession.firstName) && t.status === 'pendiente'
+  ).length;
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white pb-20 sm:pb-12 w-full max-w-full overflow-x-hidden">
@@ -305,11 +317,7 @@ export const App: React.FC = () => {
       <HeaderNavbar
         userSession={userSession}
         onOpenLogin={() => setIsLoginModalOpen(true)}
-        onRoleChange={(role) => {
-          const updated = { ...userSession, role };
-          setUserSession(updated);
-          localStorage.setItem(USER_SESSION_KEY, JSON.stringify(updated));
-        }}
+        myUnreadCount={myUnreadCount}
       />
 
       <PullToRefresh onRefresh={handleRefreshData}>
@@ -369,8 +377,8 @@ export const App: React.FC = () => {
             project={activeProject}
             tasks={activeTasks}
             notifications={activeNotifications}
-            userRole={userSession.role}
             userName={userSession.fullName || 'Usuario'}
+            userFirstName={userSession.firstName || 'Usuario'}
             onConfirmReadTask={handleConfirmReadTask}
             onCompleteTask={handleCompleteTask}
             onReassignTask={handleReassignTask}

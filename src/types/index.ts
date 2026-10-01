@@ -37,7 +37,6 @@ export interface UserSession {
   firstName: string;
   lastName: string;
   fullName: string;
-  role: 'leader' | 'collaborator';
   isLoggedIn: boolean;
 }
 
