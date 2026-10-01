@@ -16,6 +16,6 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Pass through directly to network
-  event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
+  // Pure network passthrough without fallback caching
+  event.respondWith(fetch(event.request));
 });

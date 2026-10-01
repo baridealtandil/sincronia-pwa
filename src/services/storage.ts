@@ -6,30 +6,60 @@ const NOTIFICATIONS_KEY = 'sincronia_v4_notifications';
 
 // Clean initial empty state for real project creation from scratch
 export const getProjects = (): Project[] => {
-  const data = localStorage.getItem(PROJECTS_KEY);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = localStorage.getItem(PROJECTS_KEY);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 };
 
 export const saveProjects = (projects: Project[]) => {
-  localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects));
+  try {
+    localStorage.setItem(PROJECTS_KEY, JSON.stringify(projects || []));
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 export const getTasks = (): Task[] => {
-  const data = localStorage.getItem(TASKS_KEY);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = localStorage.getItem(TASKS_KEY);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 };
 
 export const saveTasks = (tasks: Task[]) => {
-  localStorage.setItem(TASKS_KEY, JSON.stringify(tasks));
+  try {
+    localStorage.setItem(TASKS_KEY, JSON.stringify(tasks || []));
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 export const getNotifications = (): AppNotification[] => {
-  const data = localStorage.getItem(NOTIFICATIONS_KEY);
-  return data ? JSON.parse(data) : [];
+  try {
+    const data = localStorage.getItem(NOTIFICATIONS_KEY);
+    if (!data) return [];
+    const parsed = JSON.parse(data);
+    return Array.isArray(parsed) ? parsed : [];
+  } catch {
+    return [];
+  }
 };
 
 export const saveNotifications = (notifications: AppNotification[]) => {
-  localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications));
+  try {
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications || []));
+  } catch (e) {
+    console.error(e);
+  }
 };
 
 export const addNotification = (notif: Omit<AppNotification, 'id' | 'timestamp' | 'read'>) => {
