@@ -500,8 +500,8 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                     </button>
                   )}
 
-                  {/* Button 2: Confirmar Lectura (Compact pill) */}
-                  {!isRead && (
+                  {/* Button 2: Confirmar Lectura (SOLO si la tarea está asignada al usuario actual) */}
+                  {assignedToMe && !isRead && (
                     <button
                       onClick={() => handleRead(task.id)}
                       className="flex-1 min-w-[85px] py-2 px-2.5 rounded-xl bg-cyan-950/90 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
@@ -512,8 +512,8 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                     </button>
                   )}
 
-                  {/* Button 3: Tildar 100% Terminada (Compact pill) */}
-                  {!isCompleted && (
+                  {/* Button 3: Tildar 100% Terminada (SOLO si la tarea está asignada al usuario actual) */}
+                  {assignedToMe && !isCompleted && (
                     <button
                       onClick={() => handleComplete(task.id)}
                       className="flex-1 min-w-[95px] py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[11px] font-extrabold flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md shadow-emerald-600/20"
