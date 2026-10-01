@@ -31,29 +31,27 @@ export const detectTasksFromText = (rawText: string): string[] => {
 
 /**
  * Smart Name Matcher:
- * Detects if a task assigned to "Gabriel" or "Gabriel Marcasso" matches a logged-in user like "Gabriel Marcasso".
+ * Detects if a task assigned to "Gabriel" or "Gabriel Marcasso, Carolina Fernandez" matches a logged-in user like "Gabriel Marcasso".
  */
 export const isTaskAssignedToUser = (
-  assignedTo?: string | null,
+  assignedTo?: string | string[] | null,
   userFullName?: string | null,
   userFirstName?: string | null
 ): boolean => {
   if (!assignedTo) return false;
 
-  const a = String(assignedTo).trim().toLowerCase();
   const fn = userFirstName ? String(userFirstName).trim().toLowerCase() : '';
   const full = userFullName ? String(userFullName).trim().toLowerCase() : '';
+  if (!fn && !full) return false;
 
-  if (!a || (!fn && !full)) return false;
+  const rawStr = Array.isArray(assignedTo) ? assignedTo.join(', ') : String(assignedTo);
+  const assignees = rawStr.split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
 
-  // Direct exact match
-  if ((full && a === full) || (fn && a === fn)) return true;
-
-  // Check if assignedTo contains first name or vice versa
-  if (fn && fn.length >= 2 && (a.includes(fn) || fn.includes(a))) return true;
-
-  // Check if assignedTo is inside full name or vice versa
-  if (full && (full.includes(a) || a.includes(full))) return true;
-
-  return false;
+  return assignees.some(a => {
+    if (!a) return false;
+    if ((full && a === full) || (fn && a === fn)) return true;
+    if (fn && fn.length >= 2 && (a.includes(fn) || fn.includes(a))) return true;
+    if (full && (full.includes(a) || a.includes(full))) return true;
+    return false;
+  });
 };

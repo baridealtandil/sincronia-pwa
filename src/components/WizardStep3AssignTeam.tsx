@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Users, ArrowLeft, ArrowRight, CheckCircle2, UserPlus, Edit2, Trash2, Check, X } from 'lucide-react';
 import { Task } from '../types';
+import { isTaskAssignedToUser } from '../utils/taskParser';
 
 interface WizardStep3Props {
   tasks: Task[];
@@ -48,6 +49,17 @@ export const WizardStep3AssignTeam: React.FC<WizardStep3Props> = ({
     setEditingName(null);
   };
 
+  const toggleAssigneeForTask = (taskId: string, currentAssigned: string, nameToToggle: string) => {
+    let assignees = currentAssigned ? currentAssigned.split(',').map(s => s.trim()).filter(Boolean) : [];
+    if (assignees.includes(nameToToggle)) {
+      assignees = assignees.filter(a => a !== nameToToggle);
+    } else {
+      assignees.push(nameToToggle);
+    }
+    const newAssignedString = assignees.length > 0 ? assignees.join(', ') : nameToToggle;
+    onAssignTask(taskId, newAssignedString);
+  };
+
   return (
     <div className="max-w-xl mx-auto space-y-6 animate-fade-in">
       
@@ -57,7 +69,7 @@ export const WizardStep3AssignTeam: React.FC<WizardStep3Props> = ({
           Paso 3: Asignar & Gestionar Equipo
         </span>
         <h2 className="text-2xl font-extrabold text-white tracking-tight">Colaboradores del Proyecto</h2>
-        <p className="text-xs text-slate-400">Puedes agregar, editar o borrar nombres de colaboradores.</p>
+        <p className="text-xs text-slate-400">Puedes asignar uno o varios colaboradores a la misma tarjeta de tarea.</p>
       </div>
 
       {/* Main Card */}
@@ -133,32 +145,41 @@ export const WizardStep3AssignTeam: React.FC<WizardStep3Props> = ({
         </div>
 
         {/* Task Cards Assignment */}
-        <div className="space-y-3 pt-3 border-t border-slate-800">
-          <h4 className="text-xs font-bold text-slate-300 mb-2">Asignar Tarjetas de Tarea:</h4>
+        <div className="space-y-4 pt-3 border-t border-slate-800">
+          <h4 className="text-xs font-bold text-slate-300 mb-1">Asignar Tarjetas de Tarea (Selecciona uno o más):</h4>
           
           {tasks.map((task) => (
             <div
               key={task.id}
-              className="p-4 rounded-2xl bg-slate-950 border border-slate-800 flex flex-col sm:flex-row sm:items-center justify-between gap-3 text-xs shadow-sm"
+              className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 text-xs shadow-sm"
             >
-              <div className="flex items-start gap-3">
+              <div className="flex items-start gap-2.5">
                 <CheckCircle2 className="w-4 h-4 text-cyan-400 mt-0.5 flex-shrink-0" />
                 <span className="font-bold text-slate-100 text-sm">{task.title}</span>
               </div>
 
-              <div className="flex items-center gap-2 self-end sm:self-center">
-                <span className="text-[11px] font-semibold text-slate-400">Asignado a:</span>
-                <select
-                  value={task.assignedTo}
-                  onChange={(e) => onAssignTask(task.id, e.target.value)}
-                  className="px-3 py-2 rounded-xl bg-slate-900 border border-slate-700 text-xs text-cyan-300 font-bold outline-none focus:border-cyan-500"
-                >
-                  {collaborators.map((c) => (
-                    <option key={c} value={c}>
-                      👤 {c}
-                    </option>
-                  ))}
-                </select>
+              <div className="space-y-1.5 pt-1">
+                <span className="text-[11px] font-semibold text-slate-400">Responsables Asignados:</span>
+                <div className="flex flex-wrap gap-1.5">
+                  {collaborators.map((c) => {
+                    const isAssigned = isTaskAssignedToUser(task.assignedTo, c, c.split(' ')[0]);
+                    return (
+                      <button
+                        key={c}
+                        type="button"
+                        onClick={() => toggleAssigneeForTask(task.id, task.assignedTo, c)}
+                        className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 ${
+                          isAssigned
+                            ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-md ring-1 ring-cyan-400'
+                            : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                        }`}
+                      >
+                        <span>{isAssigned ? '☑️' : '⏹️'}</span>
+                        <span>👤 {c}</span>
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
             </div>
           ))}

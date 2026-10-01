@@ -40,24 +40,21 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   const [filterStatus, setFilterStatus] = useState<'all' | 'unread' | 'read' | 'completed'>('all');
   const [dismissedNotifId, setDismissedNotifId] = useState<string | null>(null);
 
-  // Reassignment Modal/Dropdown State
+  // Reassignment Modal State (Multi-Assignee Support)
   const [reassigningTaskId, setReassigningTaskId] = useState<string | null>(null);
-  const [selectedNewAssignee, setSelectedNewAssignee] = useState<string>('');
+  const [selectedNewAssignees, setSelectedNewAssignees] = useState<string[]>([]);
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.status === 'completado');
   const readTasks = tasks.filter(t => t.status === 'leido' || t.status === 'completado');
   const unreadTasks = tasks.filter(t => t.status === 'pendiente');
 
-  // User-specific task detection
+  // User-specific task detection (matches if user is any of the assignees)
   const isMyTask = (t: Task) => isTaskAssignedToUser(t.assignedTo, safeUserName, safeFirstName);
   const myAssignedTasks = tasks.filter(isMyTask);
   const myUnreadTasks = myAssignedTasks.filter(t => t.status === 'pendiente');
 
   const completedCount = completedTasks.length;
-  const readCount = readTasks.length;
-  const unreadCount = unreadTasks.length;
-  const percent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
   const PURGED_MOCK_NAMES = [
     'Sofía Gómez', 'Sofía Ruiz', 'Mateo Rodríguez', 
@@ -65,8 +62,12 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
     'Colaborador 1', 'Colaborador 2', 'Colaborador 3'
   ];
 
-  const uniqueAssignees = Array.from(new Set(tasks.map(t => t.assignedTo)))
-    .filter(name => name && !PURGED_MOCK_NAMES.includes(name));
+  // Extract all individual assignees even if a task has multiple comma-separated names
+  const allAssignedNames = tasks.flatMap(t => 
+    t.assignedTo ? t.assignedTo.split(',').map(s => s.trim()) : []
+  ).filter(name => name && !PURGED_MOCK_NAMES.includes(name));
+
+  const uniqueAssignees = Array.from(new Set(allAssignedNames));
 
   const defaultTeamList = Array.from(new Set([
     ...(safeUserName && safeUserName !== 'Usuario' ? [safeUserName] : []),
@@ -92,19 +93,32 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
     onCompleteTask(taskId);
   };
 
+  const startReassigning = (task: Task) => {
+    setReassigningTaskId(task.id);
+    const existing = task.assignedTo ? task.assignedTo.split(',').map(s => s.trim()).filter(Boolean) : [];
+    setSelectedNewAssignees(existing);
+  };
+
+  const toggleReassignee = (name: string) => {
+    setSelectedNewAssignees(prev => 
+      prev.includes(name) ? prev.filter(n => n !== name) : [...prev, name]
+    );
+  };
+
   const handleConfirmReassign = (taskId: string) => {
-    if (selectedNewAssignee && selectedNewAssignee.trim()) {
-      onReassignTask(taskId, selectedNewAssignee.trim());
+    if (selectedNewAssignees.length > 0) {
+      const newAssigneesStr = selectedNewAssignees.join(', ');
+      onReassignTask(taskId, newAssigneesStr);
       setReassigningTaskId(null);
-      setSelectedNewAssignee('');
+      setSelectedNewAssignees([]);
     }
   };
 
   const filteredTasks = tasks.filter(t => {
     if (filterPerson === 'my_tasks') {
       if (!isMyTask(t)) return false;
-    } else if (filterPerson !== 'all' && t.assignedTo !== filterPerson) {
-      return false;
+    } else if (filterPerson !== 'all') {
+      if (!isTaskAssignedToUser(t.assignedTo, filterPerson, filterPerson.split(' ')[0])) return false;
     }
     if (filterStatus === 'unread') return t.status === 'pendiente';
     if (filterStatus === 'read') return t.status === 'leido';
@@ -123,7 +137,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
             <span className="text-xs font-extrabold text-amber-300 flex items-center gap-1.5">
               <Bell className="w-4 h-4 text-amber-400 animate-bounce flex-shrink-0" />
-              ¡Atención {userFirstName}! Tienes {myUnreadTasks.length} {myUnreadTasks.length === 1 ? 'tarea asignada' : 'tareas asignadas'} sin leer:
+              ¡Atención {safeFirstName}! Tienes {myUnreadTasks.length} {myUnreadTasks.length === 1 ? 'tarea asignada' : 'tareas asignadas'} sin leer:
             </span>
             <button
               onClick={() => setFilterPerson('my_tasks')}
@@ -192,50 +206,35 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                 Tablero Colaborativo
               </span>
             </div>
-            <p className="text-xs text-slate-400 truncate">Creado por: <strong className="text-slate-200">{project.leaderName}</strong></p>
+            <p className="text-xs text-slate-400 flex items-center gap-1.5 flex-wrap">
+              <span>Creado por: <strong className="text-cyan-300 font-bold">{project.leaderName}</strong></span>
+              <span className="text-slate-600">•</span>
+              <span className="text-slate-400 font-semibold">{totalTasks} {totalTasks === 1 ? 'tarea' : 'tareas'} en total</span>
+            </p>
           </div>
 
-          {/* 100% Collaborative Actions for EVERY user */}
-          <div className="flex items-center gap-2 flex-shrink-0">
+          <div className="flex items-center gap-2 flex-wrap sm:flex-nowrap flex-shrink-0">
             <button
               onClick={onAddMoreTasksClick}
-              className="px-3 py-1.5 rounded-xl bg-slate-800 border border-slate-700 text-slate-200 hover:text-white text-xs font-bold flex items-center gap-1 transition-all active:scale-95"
+              className="px-3.5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs flex items-center gap-1.5 shadow-md active:scale-95 transition-all"
             >
-              <Plus className="w-3.5 h-3.5 text-cyan-400" />
-              <span>+ Tareas</span>
+              <Plus className="w-4 h-4" />
+              <span>+ Agregar Tareas</span>
             </button>
             <button
               onClick={onNewProjectClick}
-              className="px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-cyan-600 to-indigo-600 text-white text-xs font-bold flex items-center gap-1 shadow-lg shadow-cyan-600/20 active:scale-95 transition-all"
+              className="px-3 py-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 hover:text-white font-extrabold text-xs flex items-center gap-1.5 border border-slate-700 active:scale-95 transition-all"
             >
-              <FolderPlus className="w-3.5 h-3.5" />
-              <span>Nuevo</span>
+              <FolderPlus className="w-4 h-4" />
+              <span>Proyectos</span>
             </button>
           </div>
         </div>
 
-        {/* Dynamic Progress Meter */}
-        <div className="space-y-1.5 pt-2 border-t border-slate-800">
-          <div className="flex justify-between items-center text-xs font-extrabold">
-            <span className="text-slate-200 flex items-center gap-1.5">
-              <Sparkles className="w-4 h-4 text-cyan-400" />
-              Avance Global
-            </span>
-            <span className="text-cyan-400 font-mono text-sm">{percent}%</span>
-          </div>
-
-          <div className="h-3.5 w-full bg-slate-950 rounded-full overflow-hidden border border-slate-800 p-0.5">
-            <div
-              className="h-full bg-gradient-to-r from-cyan-500 via-indigo-500 to-emerald-400 rounded-full transition-all duration-700 ease-out"
-              style={{ width: `${percent}%` }}
-            />
-          </div>
-        </div>
-
-        {/* KPI Cards */}
-        <div className="grid grid-cols-3 gap-2 sm:gap-3 pt-1">
+        {/* Status Filters */}
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           
-          <div 
+          <div
             onClick={() => setFilterStatus(filterStatus === 'unread' ? 'all' : 'unread')}
             className={`cursor-pointer p-2.5 sm:p-3.5 rounded-2xl border transition-all text-center ${
               filterStatus === 'unread'
@@ -244,10 +243,10 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
             }`}
           >
             <span className="text-[10px] sm:text-xs font-bold text-amber-400 block truncate">Sin Leer</span>
-            <span className="text-base sm:text-lg font-extrabold text-amber-400 font-mono block mt-0.5">{unreadCount}</span>
+            <span className="text-base sm:text-lg font-extrabold text-amber-400 font-mono block mt-0.5">{unreadTasks.length}</span>
           </div>
 
-          <div 
+          <div
             onClick={() => setFilterStatus(filterStatus === 'read' ? 'all' : 'read')}
             className={`cursor-pointer p-2.5 sm:p-3.5 rounded-2xl border transition-all text-center ${
               filterStatus === 'read'
@@ -255,11 +254,11 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                 : 'bg-slate-950/70 border-slate-800/80 hover:border-cyan-500/30'
             }`}
           >
-            <span className="text-[10px] sm:text-xs font-bold text-cyan-300 block truncate">Leídos</span>
-            <span className="text-base sm:text-lg font-extrabold text-cyan-300 font-mono block mt-0.5">{readCount}</span>
+            <span className="text-[10px] sm:text-xs font-bold text-cyan-300 block truncate">Leídas</span>
+            <span className="text-base sm:text-lg font-extrabold text-cyan-300 font-mono block mt-0.5">{readTasks.length}</span>
           </div>
 
-          <div 
+          <div
             onClick={() => setFilterStatus(filterStatus === 'completed' ? 'all' : 'completed')}
             className={`cursor-pointer p-2.5 sm:p-3.5 rounded-2xl border transition-all text-center ${
               filterStatus === 'completed'
@@ -319,7 +318,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
             )}
 
             {uniqueAssignees.map(name => {
-              const personTasks = tasks.filter(t => t.assignedTo === name);
+              const personTasks = tasks.filter(t => isTaskAssignedToUser(t.assignedTo, name, name.split(' ')[0]));
               const personCompleted = personTasks.filter(t => t.status === 'completado').length;
               return (
                 <button
@@ -351,6 +350,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
             const isCompleted = task.status === 'completado';
             const isReassigningThis = reassigningTaskId === task.id;
             const assignedToMe = isMyTask(task);
+            const assigneesList = task.assignedTo ? task.assignedTo.split(',').map(s => s.trim()).filter(Boolean) : [];
 
             return (
               <div
@@ -369,7 +369,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                 {/* Header */}
                 <div className="flex items-start justify-between gap-3">
                   <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 mb-1 flex-wrap">
+                    <div className="flex items-center gap-2 mb-1.5 flex-wrap">
                       <h4 className={`text-sm sm:text-base font-extrabold tracking-tight ${isCompleted ? 'line-through text-slate-500' : 'text-white'}`}>
                         {task.title}
                       </h4>
@@ -380,13 +380,18 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                       )}
                     </div>
                     
-                    <div className="flex items-center gap-2 mt-1 flex-wrap">
-                      <p className="text-xs text-cyan-400 font-bold">
-                        Asignado a: <span className="text-slate-100">{task.assignedTo}</span>
-                      </p>
+                    <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                      <span className="text-xs text-cyan-400 font-bold">Asignado a:</span>
+                      <div className="flex flex-wrap gap-1">
+                        {assigneesList.map((aName) => (
+                          <span key={aName} className="text-xs font-bold px-2 py-0.5 rounded-lg bg-cyan-500/10 text-slate-100 border border-cyan-500/20">
+                            👤 {aName}
+                          </span>
+                        ))}
+                      </div>
 
                       {task.reassignedFrom && (
-                        <span className="text-[10px] text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20">
+                        <span className="text-[10px] text-indigo-300 bg-indigo-500/10 px-2 py-0.5 rounded-full border border-indigo-500/20 ml-1">
                           🔄 Reasignada de {task.reassignedFrom}
                         </span>
                       )}
@@ -441,13 +446,13 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                   </div>
                 </div>
 
-                {/* Inline Task Reassignment Selector Form */}
+                {/* Inline Task Reassignment Selector Form with Multi-Assignee Toggle */}
                 {isReassigningThis && (
                   <div className="p-3.5 rounded-2xl bg-slate-950 border border-cyan-500/40 space-y-3 animate-fade-in w-full overflow-hidden">
                     <div className="flex justify-between items-center text-xs font-bold text-cyan-300">
                       <span className="flex items-center gap-1">
                         <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
-                        Reasignar a otro colaborador:
+                        Selecciona uno o más colaboradores responsables:
                       </span>
                       <button
                         onClick={() => setReassigningTaskId(null)}
@@ -457,41 +462,44 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                       </button>
                     </div>
 
-                    <div className="flex flex-col gap-2 w-full">
-                      <select
-                        value={selectedNewAssignee}
-                        onChange={(e) => setSelectedNewAssignee(e.target.value)}
-                        className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-bold outline-none focus:border-cyan-500 truncate"
-                      >
-                        <option value="">Selecciona nuevo responsable...</option>
-                        {defaultTeamList.filter(name => name !== task.assignedTo).map(name => (
-                          <option key={name} value={name}>
-                            👤 {name}
-                          </option>
-                        ))}
-                      </select>
-
-                      <button
-                        onClick={() => handleConfirmReassign(task.id)}
-                        disabled={!selectedNewAssignee}
-                        className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white font-extrabold text-xs shadow-md transition-all active:scale-95"
-                      >
-                        Confirmar Reasignación
-                      </button>
+                    <div className="flex flex-wrap gap-2 w-full pt-1">
+                      {defaultTeamList.map(name => {
+                        const isChecked = selectedNewAssignees.includes(name);
+                        return (
+                          <button
+                            key={name}
+                            type="button"
+                            onClick={() => toggleReassignee(name)}
+                            className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 active:scale-95 ${
+                              isChecked
+                                ? 'bg-gradient-to-r from-cyan-600 to-indigo-600 text-white shadow-md ring-2 ring-cyan-500/40'
+                                : 'bg-slate-900 text-slate-400 border border-slate-800 hover:text-white'
+                            }`}
+                          >
+                            <span>{isChecked ? '☑️' : '⏹️'}</span>
+                            <span>👤 {name}</span>
+                          </button>
+                        );
+                      })}
                     </div>
+
+                    <button
+                      onClick={() => handleConfirmReassign(task.id)}
+                      disabled={selectedNewAssignees.length === 0}
+                      className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white font-extrabold text-xs shadow-md transition-all active:scale-95 mt-1"
+                    >
+                      Confirmar Asignación ({selectedNewAssignees.length})
+                    </button>
                   </div>
                 )}
 
                 {/* 🔘 PERFECT RESPONSIVE ACTION BUTTONS */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800/80 w-full">
                   
-                  {/* Button 1: Reasignar (Compact pill) */}
+                  {/* Button 1: Reasignar (Disponible para el equipo) */}
                   {!isCompleted && !isReassigningThis && (
                     <button
-                      onClick={() => {
-                        setReassigningTaskId(task.id);
-                        setSelectedNewAssignee('');
-                      }}
+                      onClick={() => startReassigning(task)}
                       className="flex-1 min-w-[90px] py-2 px-2.5 rounded-xl bg-slate-800/90 border border-slate-700/80 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
                       title="Reasignar tarea"
                     >
