@@ -62,7 +62,20 @@ export const App: React.FC = () => {
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession);
-        setUserSession(parsed);
+        if (parsed && typeof parsed === 'object') {
+          const fn = parsed.firstName || (parsed.fullName ? parsed.fullName.split(' ')[0] : '');
+          const ln = parsed.lastName || (parsed.fullName ? parsed.fullName.split(' ').slice(1).join(' ') : '');
+          const full = parsed.fullName || `${fn} ${ln}`.trim();
+          setUserSession({
+            firstName: fn || '',
+            lastName: ln || '',
+            fullName: full || '',
+            isLoggedIn: Boolean(parsed.isLoggedIn && full)
+          });
+          if (!full) setIsLoginModalOpen(true);
+        } else {
+          setIsLoginModalOpen(true);
+        }
       } catch {
         setIsLoginModalOpen(true);
       }

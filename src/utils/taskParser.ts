@@ -34,23 +34,23 @@ export const detectTasksFromText = (rawText: string): string[] => {
  * Detects if a task assigned to "Gabriel" or "Gabriel Marcasso" matches a logged-in user like "Gabriel Marcasso".
  */
 export const isTaskAssignedToUser = (
-  assignedTo: string,
-  userFullName: string,
-  userFirstName: string
+  assignedTo?: string | null,
+  userFullName?: string | null,
+  userFirstName?: string | null
 ): boolean => {
-  if (!assignedTo || (!userFullName && !userFirstName)) return false;
+  if (!assignedTo) return false;
 
-  const a = assignedTo.trim().toLowerCase();
-  const fn = userFirstName.trim().toLowerCase();
-  const full = userFullName.trim().toLowerCase();
+  const a = String(assignedTo).trim().toLowerCase();
+  const fn = userFirstName ? String(userFirstName).trim().toLowerCase() : '';
+  const full = userFullName ? String(userFullName).trim().toLowerCase() : '';
 
-  if (!a) return false;
+  if (!a || (!fn && !full)) return false;
 
   // Direct exact match
-  if (a === full || a === fn) return true;
+  if ((full && a === full) || (fn && a === fn)) return true;
 
   // Check if assignedTo contains first name or vice versa
-  if (fn && fn.length >= 3 && (a.includes(fn) || fn.includes(a))) return true;
+  if (fn && fn.length >= 2 && (a.includes(fn) || fn.includes(a))) return true;
 
   // Check if assignedTo is inside full name or vice versa
   if (full && (full.includes(a) || a.includes(full))) return true;
