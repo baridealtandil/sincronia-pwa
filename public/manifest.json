@@ -1,0 +1,23 @@
+{
+  "short_name": "Sincronía",
+  "name": "Sincronía - Tareas & Proyectos en Tiempo Real",
+  "icons": [
+    {
+      "src": "pwa-192x192.png",
+      "type": "image/png",
+      "sizes": "192x192"
+    },
+    {
+      "src": "pwa-512x512.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": ".",
+  "background_color": "#0f172a",
+  "theme_color": "#6366f1",
+  "display": "standalone",
+  "orientation": "portrait",
+  "description": "App colaborativa en tiempo real con autenticación PIN y Face/Touch ID para gestión de tareas por proyecto."
+}
