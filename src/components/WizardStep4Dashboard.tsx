@@ -22,16 +22,18 @@ interface WizardStep4Props {
 
 export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   project,
-  tasks,
-  notifications,
-  userName,
-  userFirstName = userName.split(' ')[0] || 'Usuario',
+  tasks = [],
+  notifications = [],
+  userName = 'Usuario',
+  userFirstName,
   onConfirmReadTask,
   onCompleteTask,
   onReassignTask,
   onNewProjectClick,
   onAddMoreTasksClick
 }) => {
+  const safeUserName = userName || 'Usuario';
+  const safeFirstName = userFirstName || safeUserName.split(' ')[0] || 'Usuario';
   const [filterPerson, setFilterPerson] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'unread' | 'read' | 'completed'>('all');
 
@@ -45,7 +47,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   const unreadTasks = tasks.filter(t => t.status === 'pendiente');
 
   // User-specific task detection
-  const isMyTask = (t: Task) => isTaskAssignedToUser(t.assignedTo, userName, userFirstName);
+  const isMyTask = (t: Task) => isTaskAssignedToUser(t.assignedTo, safeUserName, safeFirstName);
   const myAssignedTasks = tasks.filter(isMyTask);
   const myUnreadTasks = myAssignedTasks.filter(t => t.status === 'pendiente');
 

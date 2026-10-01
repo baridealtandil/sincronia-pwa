@@ -27,10 +27,18 @@ export class ErrorBoundary extends Component<Props, State> {
     try {
       localStorage.clear();
       sessionStorage.clear();
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.getRegistrations().then(registrations => {
+          for (let registration of registrations) {
+            registration.unregister();
+          }
+        });
+      }
     } catch (e) {
       console.error(e);
     }
-    window.location.reload();
+    this.setState({ hasError: false, error: null });
+    window.location.href = window.location.pathname + '?v=' + Date.now();
   };
 
   public render() {
