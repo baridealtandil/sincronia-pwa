@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Download, Smartphone, X, CheckCircle2 } from 'lucide-react';
+import { Download, Smartphone, X } from 'lucide-react';
 
 interface InstallPwaBannerProps {
   deferredPrompt: any;
@@ -20,21 +20,21 @@ export const InstallPwaBanner: React.FC<InstallPwaBannerProps> = ({ deferredProm
   if (dismissed) return null;
 
   return (
-    <div className="rounded-3xl bg-gradient-to-r from-indigo-900/80 via-purple-900/80 to-slate-900/90 border border-indigo-500/40 p-4 shadow-xl mb-6 relative overflow-hidden backdrop-blur-md">
+    <div className="rounded-3xl bg-gradient-to-r from-cyan-950/80 via-indigo-950/80 to-slate-900/90 border border-cyan-500/40 p-4 shadow-xl mb-6 relative overflow-hidden backdrop-blur-md">
       <div className="flex items-center justify-between gap-4">
         
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-indigo-500/20 border border-indigo-400/30 flex items-center justify-center text-indigo-300 flex-shrink-0">
+          <div className="w-10 h-10 rounded-2xl bg-cyan-500/20 border border-cyan-400/30 flex items-center justify-center text-cyan-300 flex-shrink-0">
             <Smartphone className="w-5 h-5" />
           </div>
           <div>
             <h4 className="font-bold text-sm text-white flex items-center gap-2">
-              Instalar Sincronía PWA en tu Dispositivo
+              Instalar Synchro App en tu Dispositivo
             </h4>
             <p className="text-xs text-slate-300">
               {isIOS 
                 ? 'En iPhone/iPad: Toca "Compartir" y selecciona "Agregar a inicio"' 
-                : 'Accede en tiempo real desde la pantalla de inicio con soporte Face ID / PIN.'}
+                : 'Accede en tiempo real desde tu pantalla de inicio.'}
             </p>
           </div>
         </div>
@@ -43,7 +43,7 @@ export const InstallPwaBanner: React.FC<InstallPwaBannerProps> = ({ deferredProm
           {deferredPrompt && (
             <button
               onClick={onInstall}
-              className="px-4 py-2 rounded-xl bg-indigo-500 text-white font-semibold text-xs shadow-lg hover:bg-indigo-400 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap"
+              className="px-4 py-2 rounded-xl bg-cyan-500 text-white font-semibold text-xs shadow-lg hover:bg-cyan-400 active:scale-95 transition-all flex items-center gap-1.5 whitespace-nowrap"
             >
               <Download className="w-3.5 h-3.5" />
               <span>Instalar App</span>

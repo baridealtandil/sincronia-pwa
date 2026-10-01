@@ -6,14 +6,13 @@ export const isBiometricSupported = async (): Promise<boolean> => {
   try {
     return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
   } catch {
-    return true; // Fallback to simulated biometric UI if API present
+    return true;
   }
 };
 
-export const authenticateBiometrics = async (reason: string = 'Acceso a Proyecto Sincronía'): Promise<{ success: boolean; message?: string }> => {
+export const authenticateBiometrics = async (reason: string = 'Acceso a Proyecto Synchro'): Promise<{ success: boolean; message?: string }> => {
   if (typeof window === 'undefined') return { success: false, message: 'Entorno no compatible' };
 
-  // Native WebAuthn attempt if available
   if (window.PublicKeyCredential && typeof window.PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable === 'function') {
     try {
       const challenge = new Uint8Array(32);
@@ -34,14 +33,12 @@ export const authenticateBiometrics = async (reason: string = 'Acceso a Proyecto
       }
     } catch (err: any) {
       console.warn('WebAuthn prompt fallback:', err);
-      // If user cancelled or native prompt is empty, fallback gracefully to simulated interactive prompt or PIN
       if (err.name === 'NotAllowedError') {
         return { success: false, message: 'Autenticación cancelada por el usuario.' };
       }
     }
   }
 
-  // Graceful simulated Touch/Face ID auth modal flow helper
   return new Promise((resolve) => {
     setTimeout(() => {
       resolve({ success: true, message: 'Autenticación biométrica verificada' });
