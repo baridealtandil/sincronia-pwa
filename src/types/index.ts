@@ -1,66 +1,34 @@
-export type Priority = 'alta' | 'media' | 'baja';
-
-export type UserRole = 'leader' | 'manager' | 'subcollaborator';
-
-export interface SubTask {
-  id: string;
-  parentTaskId: string;
-  title: string;
-  assignedTo: string; // Sub-colaborador asignado
-  completed: boolean;
-  completedBy: string | null;
-  completedAt: string | null;
-  createdAt: string;
-}
+export type TaskStatus = 'pendiente' | 'leido' | 'completado';
 
 export interface Task {
   id: string;
   projectId: string;
   title: string;
   description?: string;
-  assignedTo: string; // Encargado principal
-  priority: Priority;
-  completed: boolean;
-  completedBy: string | null;
-  completedAt: string | null;
-  note?: string | null;
-  createdAt: string;
-  subtasks?: SubTask[]; // Sub-tareas delegadas a sub-colaboradores
-}
-
-export interface TeamMember {
-  id: string;
-  projectId: string;
-  name: string;
-  role: UserRole;
-  invitedBy: string; // Quién lo invitó (Líder o Encargado)
-  email?: string;
+  assignedTo: string;
+  status: TaskStatus;
+  readBy?: string | null;
+  readAt?: string | null;
+  completedBy?: string | null;
+  completedAt?: string | null;
   createdAt: string;
 }
 
 export interface Project {
   id: string;
   name: string;
-  description: string;
   leaderName: string;
-  pin: string; // 4-digit PIN (default "1234")
-  biometricRequired: boolean;
   createdAt: string;
-  members?: TeamMember[];
 }
 
-export interface ActivityLog {
+export interface AppNotification {
   id: string;
   projectId: string;
-  userName: string;
-  userRole: UserRole;
-  action: string;
-  taskTitle: string;
+  title: string;
+  message: string;
+  type: 'read' | 'completed' | 'info';
   timestamp: string;
+  read: boolean;
 }
 
-export interface UserSession {
-  name: string;
-  role: UserRole;
-  isAuthenticated: boolean;
-}
+export type WizardStep = 'select_create_project' | 'write_tasks' | 'assign_team' | 'project_dashboard';

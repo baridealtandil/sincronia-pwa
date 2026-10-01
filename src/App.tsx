@@ -1,502 +1,270 @@
 import React, { useState, useEffect } from 'react';
-import { Navbar } from './components/Navbar';
-import { ProjectSelector } from './components/ProjectSelector';
-import { TaskBoard } from './components/TaskBoard';
-import { ActivityFeed } from './components/ActivityFeed';
-import { PinLockModal } from './components/PinLockModal';
-import { TeamModal } from './components/TeamModal';
-import { InstallPwaBanner } from './components/InstallPwaBanner';
-import { Project, Task, SubTask, TeamMember, ActivityLog, UserRole } from './types';
+import { HeaderNavbar } from './components/HeaderNavbar';
+import { WizardStep1Project } from './components/WizardStep1Project';
+import { WizardStep2SmartTasks } from './components/WizardStep2SmartTasks';
+import { WizardStep3AssignTeam } from './components/WizardStep3AssignTeam';
+import { WizardStep4Dashboard } from './components/WizardStep4Dashboard';
+import { Project, Task, AppNotification } from './types';
 import { 
   getProjects, saveProjects, 
   getTasks, saveTasks, 
-  getTeamMembers, saveTeamMembers,
-  getLogs, addLog, 
-  getMasterPin, setMasterPin 
+  getNotifications, saveNotifications, addNotification 
 } from './services/storage';
-import { broadcastSync, subscribeToSync } from './services/realtime';
-import { KeyRound } from 'lucide-react';
 
 export const App: React.FC = () => {
-  // Application Data State
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([]);
-  const [logs, setLogs] = useState<ActivityLog[]>([]);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-  // Active Context & Role
-  const [userRole, setUserRole] = useState<UserRole>('manager');
-  const [userName, setUserName] = useState<string>('Martín G. (Encargado)');
+  const [userRole, setUserRole] = useState<'leader' | 'collaborator'>('leader');
+  const [userName, setUserName] = useState<string>('Carlos (Líder)');
+
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
+  const [step, setStep] = useState<'step1_project' | 'step2_tasks' | 'step3_assign' | 'step4_dashboard'>('step1_project');
 
-  // Security Lock State
-  const [unlockedProjects, setUnlockedProjects] = useState<Record<string, boolean>>({});
-  const [pendingLockProject, setPendingLockProject] = useState<Project | null>(null);
-  
-  // Modals
-  const [isChangingMasterPin, setIsChangingMasterPin] = useState(false);
-  const [isTeamModalOpen, setIsTeamModalOpen] = useState(false);
-  const [newMasterPinInput, setNewMasterPinInput] = useState('');
-
-  // PWA Install Prompt
-  const [deferredInstallPrompt, setDeferredInstallPrompt] = useState<any>(null);
-
-  // Load Initial Data
   useEffect(() => {
-    const loadedProjects = getProjects();
-    const loadedTasks = getTasks();
-    const loadedMembers = getTeamMembers();
-    const loadedLogs = getLogs();
+    const p = getProjects();
+    const t = getTasks();
+    const n = getNotifications();
 
-    setProjects(loadedProjects);
-    setTasks(loadedTasks);
-    setTeamMembers(loadedMembers);
-    setLogs(loadedLogs);
+    setProjects(p);
+    setTasks(t);
+    setNotifications(n);
 
-    if (loadedProjects.length > 0) {
-      setActiveProjectId(loadedProjects[0].id);
+    if (p.length > 0) {
+      setActiveProjectId(p[0].id);
+      setStep('step4_dashboard');
     }
   }, []);
 
-  // Listen for Realtime Sync events from other tabs or devices
-  useEffect(() => {
-    const unsubscribe = subscribeToSync(() => {
-      setProjects(getProjects());
-      setTasks(getTasks());
-      setTeamMembers(getTeamMembers());
-      setLogs(getLogs());
-    });
-    return () => unsubscribe();
-  }, []);
+  const activeProject = projects.find(p => p.id === activeProjectId) || null;
+  const activeTasks = tasks.filter(t => t.projectId === activeProjectId);
 
-  // PWA Install Event Listener
-  useEffect(() => {
-    const handleBeforeInstallPrompt = (e: Event) => {
-      e.preventDefault();
-      setDeferredInstallPrompt(e);
-    };
-    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-    return () => window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
-  }, []);
-
-  const handleInstallPwa = () => {
-    if (deferredInstallPrompt) {
-      deferredInstallPrompt.prompt();
-      deferredInstallPrompt.userChoice.then(() => {
-        setDeferredInstallPrompt(null);
-      });
-    }
-  };
-
-  // Select project handler
-  const handleSelectProject = (project: Project) => {
-    if (unlockedProjects[project.id]) {
-      setActiveProjectId(project.id);
-    } else {
-      setPendingLockProject(project);
-    }
-  };
-
-  const handleUnlockSuccess = () => {
-    if (pendingLockProject) {
-      setUnlockedProjects(prev => ({ ...prev, [pendingLockProject.id]: true }));
-      setActiveProjectId(pendingLockProject.id);
-      setPendingLockProject(null);
-    }
-  };
-
-  const handleLockProject = (projectId: string) => {
-    setUnlockedProjects(prev => ({ ...prev, [projectId]: false }));
-  };
-
-  // Create Project (Leader)
-  const handleCreateProject = (newProjData: Omit<Project, 'id' | 'createdAt'>) => {
+  // Step 1: Create Project
+  const handleCreateProject = (name: string, leaderName: string) => {
     const newProj: Project = {
-      ...newProjData,
       id: 'proj-' + Date.now(),
-      createdAt: new Date().toISOString()
-    };
-    const updatedProjects = [newProj, ...projects];
-    setProjects(updatedProjects);
-    saveProjects(updatedProjects);
-    
-    setUnlockedProjects(prev => ({ ...prev, [newProj.id]: true }));
-    setActiveProjectId(newProj.id);
-
-    broadcastSync({
-      type: 'PROJECT_CREATED',
-      projectId: newProj.id,
-      projectName: newProj.name
-    });
-  };
-
-  // Add Member / Subcollaborator
-  const handleAddMember = (name: string, role: UserRole) => {
-    if (!activeProjectId) return;
-    const newMember: TeamMember = {
-      id: 'mem-' + Date.now(),
-      projectId: activeProjectId,
       name,
-      role,
-      invitedBy: userName,
+      leaderName,
       createdAt: new Date().toISOString()
     };
-    const updated = [...teamMembers, newMember];
-    setTeamMembers(updated);
-    saveTeamMembers(updated);
+    const updated = [newProj, ...projects];
+    setProjects(updated);
+    saveProjects(updated);
 
-    addLog({
+    setActiveProjectId(newProj.id);
+    setStep('step2_tasks');
+  };
+
+  // Step 2: Add Multiple Detected Tasks
+  const handleAddMultipleTasks = (taskTitles: string[]) => {
+    if (!activeProjectId) return;
+
+    const newTasksList: Task[] = taskTitles.map((title, idx) => ({
+      id: 'task-' + Date.now() + '-' + idx,
       projectId: activeProjectId,
-      userName,
-      userRole,
-      action: `agregó al equipo a ${name}`,
-      taskTitle: role === 'subcollaborator' ? 'Sub-colaborador' : 'Encargado'
-    });
-    setLogs(getLogs());
+      title,
+      assignedTo: idx % 2 === 0 ? 'Sofía' : 'Mateo',
+      status: 'pendiente',
+      createdAt: new Date().toISOString()
+    }));
+
+    const updated = [...tasks, ...newTasksList];
+    setTasks(updated);
+    saveTasks(updated);
   };
 
-  // Add Task (Leader)
-  const handleAddTask = (newTaskData: Omit<Task, 'id' | 'createdAt'>) => {
-    const newTask: Task = {
-      ...newTaskData,
-      id: 'task-' + Date.now(),
-      createdAt: new Date().toISOString(),
-      subtasks: []
-    };
-    const updatedTasks = [newTask, ...tasks];
-    setTasks(updatedTasks);
-    saveTasks(updatedTasks);
-
-    addLog({
-      projectId: newTask.projectId,
-      userName,
-      userRole,
-      action: 'creó nuevo objetivo principal',
-      taskTitle: newTask.title
+  // Step 3: Assign Task
+  const handleAssignTask = (taskId: string, assigneeName: string) => {
+    const updated = tasks.map(t => {
+      if (t.id === taskId) {
+        return { ...t, assignedTo: assigneeName };
+      }
+      return t;
     });
-    setLogs(getLogs());
-
-    broadcastSync({
-      type: 'TASK_CREATED',
-      projectId: newTask.projectId,
-      taskTitle: newTask.title,
-      userName
-    });
+    setTasks(updated);
+    saveTasks(updated);
   };
 
-  // Add SubTask (Leader / Encargado)
-  const handleAddSubTask = (parentTaskId: string, title: string, assignedTo: string) => {
-    const updatedTasks = tasks.map(t => {
-      if (t.id === parentTaskId) {
-        const newSub: SubTask = {
-          id: 'sub-' + Date.now(),
-          parentTaskId,
-          title,
-          assignedTo,
-          completed: false,
-          completedBy: null,
-          completedAt: null,
-          createdAt: new Date().toISOString()
-        };
+  // Collaborator Step A: Confirm Reading
+  const handleConfirmReadTask = (taskId: string) => {
+    const targetTask = tasks.find(t => t.id === taskId);
+    const updated = tasks.map(t => {
+      if (t.id === taskId && t.status === 'pendiente') {
         return {
           ...t,
-          subtasks: [...(t.subtasks || []), newSub]
+          status: 'leido' as const,
+          readBy: userName,
+          readAt: new Date().toISOString()
         };
       }
       return t;
     });
 
-    setTasks(updatedTasks);
-    saveTasks(updatedTasks);
+    setTasks(updated);
+    saveTasks(updated);
 
-    const parent = tasks.find(t => t.id === parentTaskId);
-    if (parent && activeProjectId) {
-      addLog({
+    if (targetTask && activeProjectId) {
+      addNotification({
         projectId: activeProjectId,
-        userName,
-        userRole,
-        action: `delegó sub-tarea a ${assignedTo}`,
-        taskTitle: title
+        title: '👀 Lectura Confirmada',
+        message: `${userName} confirmó que leyó la tarea: "${targetTask.title}"`,
+        type: 'read'
       });
-      setLogs(getLogs());
-
-      broadcastSync({
-        type: 'TASK_CREATED',
-        projectId: activeProjectId,
-        taskTitle: `${title} (Delegada)`,
-        userName
-      });
+      setNotifications(getNotifications());
     }
   };
 
-  // Toggle Task Completion (100%)
-  const handleToggleTask = (taskId: string, completed: boolean, note?: string) => {
-    const updatedTasks = tasks.map(t => {
+  // Collaborator Step B: Complete Task 100%
+  const handleCompleteTask = (taskId: string) => {
+    const targetTask = tasks.find(t => t.id === taskId);
+    const updated = tasks.map(t => {
       if (t.id === taskId) {
         return {
           ...t,
-          completed,
-          completedBy: completed ? userName : null,
-          completedAt: completed ? new Date().toISOString() : null,
-          note: note !== undefined ? note : t.note
+          status: 'completado' as const,
+          completedBy: userName,
+          completedAt: new Date().toISOString()
         };
       }
       return t;
     });
 
-    setTasks(updatedTasks);
-    saveTasks(updatedTasks);
+    setTasks(updated);
+    saveTasks(updated);
 
-    const targetTask = tasks.find(t => t.id === taskId);
-    if (targetTask) {
-      const actionText = completed ? 'completó al 100%' : 'marcó como pendiente';
-      addLog({
-        projectId: targetTask.projectId,
-        userName,
-        userRole,
-        action: actionText,
-        taskTitle: targetTask.title
+    if (targetTask && activeProjectId) {
+      addNotification({
+        projectId: activeProjectId,
+        title: '🎉 Tarea Finalizada 100%',
+        message: `¡${userName} tildó como terminada la tarea: "${targetTask.title}"!`,
+        type: 'completed'
       });
-      setLogs(getLogs());
-
-      broadcastSync({
-        type: 'TASK_UPDATED',
-        projectId: targetTask.projectId,
-        taskTitle: targetTask.title,
-        completed,
-        userName
-      });
+      setNotifications(getNotifications());
     }
   };
 
-  // Toggle SubTask Completion (100%)
-  const handleToggleSubTask = (parentTaskId: string, subTaskId: string, completed: boolean) => {
-    const updatedTasks = tasks.map(t => {
-      if (t.id === parentTaskId) {
-        const updatedSubs = (t.subtasks || []).map(s => {
-          if (s.id === subTaskId) {
-            return {
-              ...s,
-              completed,
-              completedBy: completed ? userName : null,
-              completedAt: completed ? new Date().toISOString() : null
-            };
-          }
-          return s;
-        });
-
-        // Check if all subtasks are complete
-        const allSubsComplete = updatedSubs.length > 0 && updatedSubs.every(s => s.completed);
-
-        return {
-          ...t,
-          subtasks: updatedSubs,
-          // Auto-mark parent complete if all subtasks completed
-          completed: allSubsComplete ? true : t.completed,
-          completedBy: allSubsComplete ? (t.completedBy || userName) : t.completedBy,
-          completedAt: allSubsComplete ? (t.completedAt || new Date().toISOString()) : t.completedAt
-        };
-      }
-      return t;
-    });
-
-    setTasks(updatedTasks);
-    saveTasks(updatedTasks);
-
-    const parent = tasks.find(t => t.id === parentTaskId);
-    const targetSub = parent?.subtasks?.find(s => s.id === subTaskId);
-    if (parent && targetSub) {
-      addLog({
-        projectId: parent.projectId,
-        userName,
-        userRole,
-        action: completed ? 'completó sub-tarea al 100%' : 'reabrió sub-tarea',
-        taskTitle: targetSub.title
-      });
-      setLogs(getLogs());
-
-      broadcastSync({
-        type: 'TASK_UPDATED',
-        projectId: parent.projectId,
-        taskTitle: targetSub.title,
-        completed,
-        userName
-      });
-    }
+  const handleMarkNotificationsRead = () => {
+    const updated = notifications.map(n => ({ ...n, read: true }));
+    setNotifications(updated);
+    saveNotifications(updated);
   };
-
-  // Delete Task
-  const handleDeleteTask = (taskId: string) => {
-    const targetTask = tasks.find(t => t.id === taskId);
-    const updatedTasks = tasks.filter(t => t.id !== taskId);
-    setTasks(updatedTasks);
-    saveTasks(updatedTasks);
-
-    if (targetTask) {
-      addLog({
-        projectId: targetTask.projectId,
-        userName,
-        userRole,
-        action: 'eliminó la tarea',
-        taskTitle: targetTask.title
-      });
-      setLogs(getLogs());
-    }
-  };
-
-  const handleSaveMasterPin = () => {
-    if (newMasterPinInput.length === 4) {
-      setMasterPin(newMasterPinInput);
-      setIsChangingMasterPin(false);
-      setNewMasterPinInput('');
-    }
-  };
-
-  const activeProject = projects.find(p => p.id === activeProjectId);
-  const activeTasks = tasks.filter(t => t.projectId === activeProjectId);
-  const activeMembers = teamMembers.filter(m => m.projectId === activeProjectId);
-  const activeLogs = logs.filter(l => l.projectId === activeProjectId);
 
   return (
     <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white pb-12">
       
-      {/* Top Navbar */}
-      <Navbar
+      {/* Top Header */}
+      <HeaderNavbar
         userRole={userRole}
         userName={userName}
-        onRoleChange={(role) => {
-          setUserRole(role);
-          if (role === 'leader') setUserName('Carlos V. (Jefe)');
-          else if (role === 'manager') setUserName('Martín G. (Encargado)');
-          else setUserName('Esteban K. (Sub-colaborador)');
-        }}
+        notifications={notifications.filter(n => n.projectId === activeProjectId)}
+        onRoleChange={setUserRole}
         onUserNameChange={setUserName}
-        onOpenMasterPin={() => setIsChangingMasterPin(true)}
-        onOpenTeamModal={() => setIsTeamModalOpen(true)}
-        deferredInstallPrompt={deferredInstallPrompt}
-        onInstallPwa={handleInstallPwa}
+        onMarkNotificationsRead={handleMarkNotificationsRead}
       />
 
-      {/* Main Content Area */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 flex-1 w-full space-y-8">
+      {/* Main Container */}
+      <main className="max-w-4xl mx-auto px-4 pt-8 flex-1 w-full space-y-6">
         
-        {/* PWA Install Banner */}
-        <InstallPwaBanner
-          deferredPrompt={deferredInstallPrompt}
-          onInstall={handleInstallPwa}
-        />
+        {/* Wizard Card Steps Navigation indicator */}
+        <div className="flex items-center justify-center gap-2 text-xs font-semibold">
+          <button
+            onClick={() => setStep('step1_project')}
+            className={`px-3 py-1 rounded-full border transition-all ${
+              step === 'step1_project'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
+            }`}
+          >
+            1. Proyecto
+          </button>
+          <span className="text-slate-600">→</span>
+          <button
+            onClick={() => setStep('step2_tasks')}
+            disabled={!activeProject}
+            className={`px-3 py-1 rounded-full border transition-all ${
+              step === 'step2_tasks'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-40'
+            }`}
+          >
+            2. Tareas
+          </button>
+          <span className="text-slate-600">→</span>
+          <button
+            onClick={() => setStep('step3_assign')}
+            disabled={!activeProject || activeTasks.length === 0}
+            className={`px-3 py-1 rounded-full border transition-all ${
+              step === 'step3_assign'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-40'
+            }`}
+          >
+            3. Asignar
+          </button>
+          <span className="text-slate-600">→</span>
+          <button
+            onClick={() => setStep('step4_dashboard')}
+            disabled={!activeProject}
+            className={`px-3 py-1 rounded-full border transition-all ${
+              step === 'step4_dashboard'
+                ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-40'
+            }`}
+          >
+            4. Tablero & Notificaciones
+          </button>
+        </div>
 
-        {/* Project Selector Grid */}
-        <ProjectSelector
-          projects={projects}
-          allTasks={tasks}
-          activeProjectId={activeProjectId}
-          unlockedProjects={unlockedProjects}
-          userRole={userRole}
-          onSelectProject={handleSelectProject}
-          onCreateProject={handleCreateProject}
-        />
+        {/* Step 1: Project Card */}
+        {step === 'step1_project' && (
+          <WizardStep1Project
+            projects={projects}
+            activeProject={activeProject}
+            onSelectProject={(p) => {
+              setActiveProjectId(p.id);
+              setStep('step4_dashboard');
+            }}
+            onCreateProject={handleCreateProject}
+            onNextStep={() => setStep('step2_tasks')}
+          />
+        )}
 
-        {/* Active Project Workspace */}
-        {activeProject && (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start pt-4 border-t border-slate-800/80">
-            
-            {/* Task Board */}
-            <div className="lg:col-span-2">
-              <TaskBoard
-                project={activeProject}
-                tasks={activeTasks}
-                teamMembers={activeMembers}
-                userRole={userRole}
-                userName={userName}
-                onAddTask={handleAddTask}
-                onToggleTask={handleToggleTask}
-                onAddSubTask={handleAddSubTask}
-                onToggleSubTask={handleToggleSubTask}
-                onDeleteTask={handleDeleteTask}
-                onLockProject={() => handleLockProject(activeProject.id)}
-                onOpenTeamModal={() => setIsTeamModalOpen(true)}
-              />
-            </div>
+        {/* Step 2: Smart Tasks Input Card */}
+        {step === 'step2_tasks' && activeProject && (
+          <WizardStep2SmartTasks
+            project={activeProject}
+            onAddMultipleTasks={handleAddMultipleTasks}
+            onPrevStep={() => setStep('step1_project')}
+            onNextStep={() => setStep('step3_assign')}
+          />
+        )}
 
-            {/* Realtime Activity Stream */}
-            <div className="lg:col-span-1 space-y-6">
-              <ActivityFeed logs={activeLogs} />
-            </div>
+        {/* Step 3: Assign Team Card */}
+        {step === 'step3_assign' && (
+          <WizardStep3AssignTeam
+            tasks={activeTasks}
+            onAssignTask={handleAssignTask}
+            onPrevStep={() => setStep('step2_tasks')}
+            onFinishStep={() => setStep('step4_dashboard')}
+          />
+        )}
 
-          </div>
+        {/* Step 4: Simple Dashboard & Confirmations */}
+        {step === 'step4_dashboard' && activeProject && (
+          <WizardStep4Dashboard
+            project={activeProject}
+            tasks={activeTasks}
+            userRole={userRole}
+            userName={userName}
+            onConfirmReadTask={handleConfirmReadTask}
+            onCompleteTask={handleCompleteTask}
+            onNewProjectClick={() => setStep('step1_project')}
+            onAddMoreTasksClick={() => setStep('step2_tasks')}
+          />
         )}
 
       </main>
-
-      {/* Security Pin Lock Modal */}
-      {pendingLockProject && (
-        <PinLockModal
-          isOpen={!!pendingLockProject}
-          targetName={pendingLockProject.name}
-          expectedPin={pendingLockProject.pin}
-          allowBiometrics={pendingLockProject.biometricRequired}
-          onSuccess={handleUnlockSuccess}
-          onClose={() => setPendingLockProject(null)}
-        />
-      )}
-
-      {/* Team Management Modal */}
-      {activeProject && (
-        <TeamModal
-          isOpen={isTeamModalOpen}
-          projectId={activeProject.id}
-          projectName={activeProject.name}
-          currentUserRole={userRole}
-          currentUserName={userName}
-          members={activeMembers}
-          onAddMember={handleAddMember}
-          onClose={() => setIsTeamModalOpen(false)}
-        />
-      )}
-
-      {/* Change Master PIN Modal */}
-      {isChangingMasterPin && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/80 backdrop-blur-md p-4">
-          <div className="w-full max-w-sm rounded-3xl bg-slate-900 border border-slate-800 p-6 shadow-2xl space-y-4">
-            <div className="flex items-center gap-2 text-indigo-400 font-semibold text-sm">
-              <KeyRound className="w-5 h-5" />
-              <span>Configuración de PIN de Acceso</span>
-            </div>
-            <p className="text-xs text-slate-400">
-              Establece la contraseña por defecto de 4 dígitos para proteger tus proyectos.
-            </p>
-
-            <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">Nuevo PIN (4 dígitos)</label>
-              <input
-                type="text"
-                maxLength={4}
-                placeholder="1234"
-                value={newMasterPinInput}
-                onChange={(e) => setNewMasterPinInput(e.target.value.replace(/\D/g, ''))}
-                className="w-full px-4 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-sm text-white font-mono tracking-widest text-center focus:outline-none focus:border-indigo-500"
-              />
-            </div>
-
-            <div className="flex justify-end gap-3 pt-2">
-              <button
-                onClick={() => setIsChangingMasterPin(false)}
-                className="px-4 py-2 rounded-xl text-xs font-semibold text-slate-400 hover:text-white"
-              >
-                Cancelar
-              </button>
-              <button
-                onClick={handleSaveMasterPin}
-                disabled={newMasterPinInput.length !== 4}
-                className="px-5 py-2 rounded-xl bg-indigo-600 text-white font-semibold text-xs shadow-lg hover:bg-indigo-500 disabled:opacity-50"
-              >
-                Guardar PIN
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
     </div>
   );
