@@ -316,8 +316,9 @@ export const App: React.FC = () => {
     // Simulate smooth network/storage sync feedback
     await new Promise(resolve => setTimeout(resolve, 600));
   };
-  const activeTasks = tasks.filter(t => t.projectId === activeProjectId);
-  const activeNotifications = notifications.filter(n => n.projectId === activeProjectId);
+  const activeProject = (projects || []).find(p => p && p.id === activeProjectId) || (projects.length > 0 ? projects[0] : null);
+  const activeTasks = activeProject ? (tasks || []).filter(t => t && t.projectId === activeProject.id) : [];
+  const activeNotifications = activeProject ? (notifications || []).filter(n => n && n.projectId === activeProject.id) : [];
 
   const myUnreadCount = activeTasks.filter(t => 
     isTaskAssignedToUser(t.assignedTo, userSession.fullName, userSession.firstName) && t.status === 'pendiente'
