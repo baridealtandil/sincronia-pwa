@@ -13,11 +13,15 @@ import {
 } from './services/storage';
 
 const USER_SESSION_KEY = 'synchro_user_session_v1';
+const COLLABORATORS_KEY = 'synchro_collaborators_v1';
+
+const DEFAULT_COLLABS = ['Sofía Gómez', 'Mateo Rodríguez', 'Lucas Fernández', 'Valentina Ruiz'];
 
 export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [collaborators, setCollaborators] = useState<string[]>(DEFAULT_COLLABS);
 
   // User Session State (Nombre y Apellido)
   const [userSession, setUserSession] = useState<UserSession>({
@@ -41,6 +45,16 @@ export const App: React.FC = () => {
     setTasks(t);
     setNotifications(n);
 
+    // Load saved collaborators list
+    const savedCollabs = localStorage.getItem(COLLABORATORS_KEY);
+    if (savedCollabs) {
+      try {
+        setCollaborators(JSON.parse(savedCollabs));
+      } catch {
+        setCollaborators(DEFAULT_COLLABS);
+      }
+    }
+
     // Check saved user session
     const savedSession = localStorage.getItem(USER_SESSION_KEY);
     if (savedSession) {
@@ -62,6 +76,38 @@ export const App: React.FC = () => {
     }
   }, []);
 
+  const handleSaveCollabsList = (list: string[]) => {
+    setCollaborators(list);
+    localStorage.setItem(COLLABORATORS_KEY, JSON.stringify(list));
+  };
+
+  const handleAddCollaborator = (name: string) => {
+    if (!collaborators.includes(name)) {
+      const updated = [...collaborators, name];
+      handleSaveCollabsList(updated);
+    }
+  };
+
+  const handleEditCollaborator = (oldName: string, newName: string) => {
+    const updatedCollabs = collaborators.map(c => c === oldName ? newName : c);
+    handleSaveCollabsList(updatedCollabs);
+
+    // Propagate new name to all assigned tasks
+    const updatedTasks = tasks.map(t => {
+      if (t.assignedTo === oldName) {
+        return { ...t, assignedTo: newName };
+      }
+      return t;
+    });
+    setTasks(updatedTasks);
+    saveTasks(updatedTasks);
+  };
+
+  const handleDeleteCollaborator = (name: string) => {
+    const updatedCollabs = collaborators.filter(c => c !== name);
+    handleSaveCollabsList(updatedCollabs);
+  };
+
   const handleLogin = (firstName: string, lastName: string, role: 'leader' | 'collaborator') => {
     const session: UserSession = {
       firstName,
@@ -72,6 +118,12 @@ export const App: React.FC = () => {
     };
     setUserSession(session);
     localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
+
+    // Also add to collaborators list if not already present
+    if (`${firstName} ${lastName}`.trim()) {
+      handleAddCollaborator(`${firstName} ${lastName}`.trim());
+    }
+
     setIsLoginModalOpen(false);
   };
 
@@ -113,11 +165,12 @@ export const App: React.FC = () => {
   const handleAddMultipleTasks = (taskTitles: string[]) => {
     if (!activeProjectId) return;
 
+    const availableCollabs = collaborators.length > 0 ? collaborators : DEFAULT_COLLABS;
     const newTasksList: Task[] = taskTitles.map((title, idx) => ({
       id: 'task-' + Date.now() + '-' + idx,
       projectId: activeProjectId,
       title,
-      assignedTo: idx % 2 === 0 ? 'Sofía Gómez' : 'Mateo Rodríguez',
+      assignedTo: availableCollabs[idx % availableCollabs.length],
       status: 'pendiente',
       createdAt: new Date().toISOString()
     }));
@@ -282,7 +335,7 @@ export const App: React.FC = () => {
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
             }`}
           >
-            3. Asignar
+            3. Asignar & Equipo
           </button>
           <span className="text-slate-700">→</span>
           <button
@@ -323,10 +376,14 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Step 3: Assign Team Card */}
+        {/* Step 3: Assign Team Card with Collaborators Edit & Delete */}
         {step === 'step3_assign' && (
           <WizardStep3AssignTeam
             tasks={activeTasks}
+            collaborators={collaborators}
+            onAddCollaborator={handleAddCollaborator}
+            onEditCollaborator={handleEditCollaborator}
+            onDeleteCollaborator={handleDeleteCollaborator}
             onAssignTask={handleAssignTask}
             onPrevStep={() => setStep('step2_tasks')}
             onFinishStep={() => setStep('step4_dashboard')}
@@ -351,7 +408,7 @@ export const App: React.FC = () => {
 
       </main>
 
-      {/* Login Modal for Nombre y Apellido */}
+      {/* Login Modal */}
       <LoginModal
         isOpen={isLoginModalOpen}
         onLogin={handleLogin}
