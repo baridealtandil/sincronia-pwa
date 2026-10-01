@@ -14,69 +14,55 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   onRoleChange
 }) => {
   return (
-    <header className="bg-slate-900/90 backdrop-blur-2xl border-b border-indigo-500/20 sticky top-0 z-40 shadow-xl shadow-slate-950/50">
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+    <header className="bg-slate-900/95 backdrop-blur-2xl border-b border-indigo-500/20 sticky top-0 z-40 shadow-xl shadow-slate-950/60 w-full overflow-hidden">
+      <div className="max-w-4xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 w-full">
         
         {/* Brand */}
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-2 flex-shrink-0">
           <img 
             src="/logo.jpg" 
             alt="Synchro Logo" 
-            className="w-10 h-10 rounded-2xl object-cover ring-2 ring-cyan-500/40 shadow-lg shadow-cyan-500/20" 
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl object-cover ring-2 ring-cyan-500/40 shadow-md shadow-cyan-500/20" 
           />
-          <div>
-            <div className="flex items-center gap-2">
-              <h1 className="font-extrabold text-lg text-white tracking-tight bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
-                Synchro
-              </h1>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30">
-                PRO
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium hidden sm:block">Sincronización de Tareas</p>
+          <div className="flex items-center gap-1.5">
+            <h1 className="font-extrabold text-base sm:text-lg text-white tracking-tight bg-gradient-to-r from-cyan-400 via-indigo-300 to-purple-400 bg-clip-text text-transparent">
+              Synchro
+            </h1>
+            <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hidden xs:inline-block">
+              PRO
+            </span>
           </div>
         </div>
 
-        {/* User Info & Role Tag */}
-        <div className="flex items-center gap-2 sm:gap-3">
+        {/* User Info & Role Toggle */}
+        <div className="flex items-center gap-1.5 sm:gap-3 flex-shrink-0 min-w-0">
           
           {/* User Name Badge */}
           <button
             onClick={onOpenLogin}
-            className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 transition-all text-xs text-slate-200"
-            title="Cambiar Nombre y Apellido / Cambiar Usuario"
+            className="flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl bg-slate-800/90 border border-slate-700/80 hover:border-cyan-500/50 transition-all text-xs text-slate-200"
+            title="Cambiar Nombre y Apellido"
           >
-            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center font-bold text-white text-[10px]">
-              {userSession.firstName.charAt(0)}{userSession.lastName.charAt(0)}
+            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center font-bold text-white text-[9px] sm:text-[10px] flex-shrink-0">
+              {userSession.firstName ? userSession.firstName.charAt(0) : 'U'}{userSession.lastName ? userSession.lastName.charAt(0) : ''}
             </div>
-            <span className="font-extrabold text-slate-100 max-w-[120px] truncate">
+            <span className="font-bold text-slate-100 max-w-[85px] sm:max-w-[120px] truncate text-[11px] sm:text-xs">
               {userSession.fullName || 'Ingresar'}
             </span>
           </button>
 
-          {/* Role Switcher */}
-          <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
-            <button
-              onClick={() => onRoleChange('leader')}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                userSession.role === 'leader'
-                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              👑 Jefe
-            </button>
-            <button
-              onClick={() => onRoleChange('collaborator')}
-              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
-                userSession.role === 'collaborator'
-                  ? 'bg-gradient-to-r from-cyan-600 to-emerald-600 text-white shadow-md'
-                  : 'text-slate-400 hover:text-white'
-              }`}
-            >
-              👷 Colaborador
-            </button>
-          </div>
+          {/* Sleek Role Toggle Pill */}
+          <button
+            onClick={() => onRoleChange(userSession.role === 'leader' ? 'collaborator' : 'leader')}
+            className={`px-2.5 py-1 rounded-xl text-[11px] sm:text-xs font-extrabold transition-all flex items-center gap-1 border active:scale-95 shadow-md ${
+              userSession.role === 'leader'
+                ? 'bg-gradient-to-r from-indigo-600 to-purple-600 border-indigo-500/40 text-white shadow-indigo-600/20'
+                : 'bg-gradient-to-r from-cyan-600 to-emerald-600 border-cyan-500/40 text-white shadow-cyan-600/20'
+            }`}
+            title="Toca para cambiar entre Modo Jefe y Modo Colaborador"
+          >
+            <span>{userSession.role === 'leader' ? '👑 Jefe' : '👷 Colaborador'}</span>
+          </button>
 
         </div>
 

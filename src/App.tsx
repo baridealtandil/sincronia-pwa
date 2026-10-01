@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { HeaderNavbar } from './components/HeaderNavbar';
 import { LoginModal } from './components/LoginModal';
+import { Navigation } from './components/Navigation';
 import { WizardStep1Project } from './components/WizardStep1Project';
 import { WizardStep2SmartTasks } from './components/WizardStep2SmartTasks';
 import { WizardStep3AssignTeam } from './components/WizardStep3AssignTeam';
@@ -285,7 +286,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white pb-12">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white pb-20 sm:pb-12 w-full max-w-full overflow-x-hidden">
       
       {/* Top Header */}
       <HeaderNavbar
@@ -299,57 +300,15 @@ export const App: React.FC = () => {
       />
 
       {/* Main Container */}
-      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-8 flex-1 w-full space-y-6">
+      <main className="max-w-3xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8 flex-1 w-full space-y-6">
         
-        {/* Wizard Step Navigation */}
-        <div className="flex items-center justify-center gap-2 text-xs font-bold">
-          <button
-            onClick={() => setStep('step1_project')}
-            className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
-              step === 'step1_project'
-                ? 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-600/20'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
-            }`}
-          >
-            1. Proyecto
-          </button>
-          <span className="text-slate-700">→</span>
-          <button
-            onClick={() => setStep('step2_tasks')}
-            disabled={!activeProject}
-            className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
-              step === 'step2_tasks'
-                ? 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-600/20'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
-            }`}
-          >
-            2. Tareas
-          </button>
-          <span className="text-slate-700">→</span>
-          <button
-            onClick={() => setStep('step3_assign')}
-            disabled={!activeProject || activeTasks.length === 0}
-            className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
-              step === 'step3_assign'
-                ? 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-600/20'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
-            }`}
-          >
-            3. Asignar & Equipo
-          </button>
-          <span className="text-slate-700">→</span>
-          <button
-            onClick={() => setStep('step4_dashboard')}
-            disabled={!activeProject}
-            className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
-              step === 'step4_dashboard'
-                ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-600/20'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
-            }`}
-          >
-            4. Tablero Synchro
-          </button>
-        </div>
+        {/* Professional Navigation Bar (Segmented on desktop, bottom dock on mobile) */}
+        <Navigation
+          step={step}
+          setStep={setStep}
+          activeProject={activeProject}
+          hasTasks={activeTasks.length > 0}
+        />
 
         {/* Step 1: Project Card */}
         {step === 'step1_project' && (

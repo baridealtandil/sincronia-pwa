@@ -354,7 +354,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
 
                 {/* Inline Task Reassignment Selector Form */}
                 {isReassigningThis && (
-                  <div className="p-3 rounded-2xl bg-slate-950 border border-cyan-500/40 space-y-2.5 animate-fade-in">
+                  <div className="p-3.5 rounded-2xl bg-slate-950 border border-cyan-500/40 space-y-3 animate-fade-in w-full overflow-hidden">
                     <div className="flex justify-between items-center text-xs font-bold text-cyan-300">
                       <span className="flex items-center gap-1">
                         <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
@@ -362,17 +362,17 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                       </span>
                       <button
                         onClick={() => setReassigningTaskId(null)}
-                        className="text-slate-400 hover:text-white text-xs"
+                        className="text-slate-400 hover:text-white text-xs px-2 py-0.5 rounded-lg bg-slate-900 border border-slate-800"
                       >
                         Cancelar
                       </button>
                     </div>
 
-                    <div className="flex flex-col sm:flex-row gap-2">
+                    <div className="flex flex-col gap-2 w-full">
                       <select
                         value={selectedNewAssignee}
                         onChange={(e) => setSelectedNewAssignee(e.target.value)}
-                        className="flex-1 px-3 py-2 rounded-xl bg-slate-900 border border-slate-800 text-xs text-white font-bold outline-none focus:border-cyan-500"
+                        className="w-full px-3 py-2.5 rounded-xl bg-slate-900 border border-slate-700 text-xs text-white font-bold outline-none focus:border-cyan-500 truncate"
                       >
                         <option value="">Selecciona nuevo responsable...</option>
                         {defaultTeamList.filter(name => name !== task.assignedTo).map(name => (
@@ -385,16 +385,16 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                       <button
                         onClick={() => handleConfirmReassign(task.id)}
                         disabled={!selectedNewAssignee}
-                        className="px-4 py-2 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white font-bold text-xs shadow-md"
+                        className="w-full py-2.5 rounded-xl bg-cyan-600 hover:bg-cyan-500 disabled:opacity-40 text-white font-extrabold text-xs shadow-md transition-all active:scale-95"
                       >
-                        Confirmar
+                        Confirmar Reasignación
                       </button>
                     </div>
                   </div>
                 )}
 
-                {/* 🔘 COMPACT RESPONSIVE BUTTONS (Never overflow mobile screen!) */}
-                <div className="flex items-center justify-between gap-1.5 pt-2 border-t border-slate-800/80 w-full">
+                {/* 🔘 PERFECT RESPONSIVE ACTION BUTTONS */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-slate-800/80 w-full">
                   
                   {/* Button 1: Reasignar (Compact pill) */}
                   {!isCompleted && !isReassigningThis && (
@@ -403,48 +403,44 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
                         setReassigningTaskId(task.id);
                         setSelectedNewAssignee('');
                       }}
-                      className="px-2.5 py-1.5 rounded-xl bg-slate-800/90 border border-slate-700/80 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all flex-shrink-0"
+                      className="flex-1 min-w-[90px] py-2 px-2.5 rounded-xl bg-slate-800/90 border border-slate-700/80 text-slate-300 hover:text-cyan-300 hover:border-cyan-500/40 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
                       title="Reasignar tarea"
                     >
-                      <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400" />
+                      <ArrowRightLeft className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
                       <span>Reasignar</span>
                     </button>
                   )}
 
-                  <div className="flex items-center gap-1.5 ml-auto flex-wrap">
-                    
-                    {/* Button 2: Confirmar Lectura (Compact pill) */}
-                    {!isRead && (
-                      <button
-                        onClick={() => handleRead(task.id)}
-                        className="px-2.5 py-1.5 rounded-xl bg-cyan-950/90 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900 text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all flex-shrink-0 shadow-sm"
-                        title="Confirmar Lectura"
-                      >
-                        <Eye className="w-3.5 h-3.5 text-cyan-400" />
-                        <span>Leído</span>
-                      </button>
-                    )}
+                  {/* Button 2: Confirmar Lectura (Compact pill) */}
+                  {!isRead && (
+                    <button
+                      onClick={() => handleRead(task.id)}
+                      className="flex-1 min-w-[85px] py-2 px-2.5 rounded-xl bg-cyan-950/90 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-900 text-[11px] font-bold flex items-center justify-center gap-1 active:scale-95 transition-all shadow-sm"
+                      title="Confirmar Lectura"
+                    >
+                      <Eye className="w-3.5 h-3.5 text-cyan-400 flex-shrink-0" />
+                      <span>Leído</span>
+                    </button>
+                  )}
 
-                    {/* Button 3: Tildar 100% Terminada (Compact pill) */}
-                    {!isCompleted && (
-                      <button
-                        onClick={() => handleComplete(task.id)}
-                        className="px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[11px] font-bold flex items-center gap-1 active:scale-95 transition-all flex-shrink-0 shadow-md shadow-emerald-600/20"
-                        title="Tildar 100% Terminada"
-                      >
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>100% Listo</span>
-                      </button>
-                    )}
+                  {/* Button 3: Tildar 100% Terminada (Compact pill) */}
+                  {!isCompleted && (
+                    <button
+                      onClick={() => handleComplete(task.id)}
+                      className="flex-1 min-w-[95px] py-2 px-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white text-[11px] font-extrabold flex items-center justify-center gap-1 active:scale-95 transition-all shadow-md shadow-emerald-600/20"
+                      title="Tildar 100% Terminada"
+                    >
+                      <CheckCircle2 className="w-3.5 h-3.5 flex-shrink-0" />
+                      <span>100% Listo</span>
+                    </button>
+                  )}
 
-                    {isCompleted && (
-                      <div className="text-[11px] text-emerald-400 font-bold flex items-center gap-1 py-1">
-                        <CheckCircle2 className="w-3.5 h-3.5" />
-                        <span>100% Finalizada</span>
-                      </div>
-                    )}
-
-                  </div>
+                  {isCompleted && (
+                    <div className="ml-auto text-[11px] text-emerald-400 font-extrabold flex items-center gap-1 py-1">
+                      <CheckCircle2 className="w-3.5 h-3.5" />
+                      <span>100% Finalizada</span>
+                    </div>
+                  )}
 
                 </div>
 
