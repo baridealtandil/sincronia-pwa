@@ -235,6 +235,16 @@ export const App: React.FC = () => {
     const updated = [...tasks, ...newTasksList];
     setTasks(updated);
     saveTasks(updated);
+
+    if (activeProjectId && newTasksList.length > 0) {
+      addNotification({
+        projectId: activeProjectId,
+        title: `📥 ${newTasksList.length} ${newTasksList.length === 1 ? 'Nueva Tarea Asignada' : 'Nuevas Tareas Asignadas'}`,
+        message: `Se cargaron ${newTasksList.length} tareas en el proyecto por ${userSession.fullName || 'el equipo'}.`,
+        type: 'info'
+      });
+      setNotifications(getNotifications());
+    }
   };
 
   // Step 3: Assign Task

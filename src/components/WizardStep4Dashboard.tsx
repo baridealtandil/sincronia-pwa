@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import confetti from 'canvas-confetti';
 import { 
   CheckCircle2, Eye, Plus, FolderPlus, Clock, 
-  Users, Sparkles, UserCheck, ArrowRightLeft, Bell
+  Users, Sparkles, UserCheck, ArrowRightLeft, Bell, X
 } from 'lucide-react';
 import { Project, Task, AppNotification } from '../types';
 import { isTaskAssignedToUser } from '../utils/taskParser';
@@ -38,6 +38,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   const safeFirstName = userFirstName || safeUserName.split(' ')[0] || 'Usuario';
   const [filterPerson, setFilterPerson] = useState<string>('all');
   const [filterStatus, setFilterStatus] = useState<'all' | 'unread' | 'read' | 'completed'>('all');
+  const [dismissedNotifId, setDismissedNotifId] = useState<string | null>(null);
 
   // Reassignment Modal/Dropdown State
   const [reassigningTaskId, setReassigningTaskId] = useState<string | null>(null);
@@ -150,7 +151,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
       )}
 
       {/* 🔔 Latest Global Activity Toast Banner */}
-      {latestNotification && (
+      {latestNotification && dismissedNotifId !== latestNotification.id && (
         <div className={`p-3.5 rounded-2xl border shadow-xl flex items-center justify-between gap-3 animate-fade-in w-full overflow-hidden ${
           latestNotification.type === 'completed'
             ? 'bg-emerald-950/90 border-emerald-500/40 text-emerald-200'
@@ -167,7 +168,16 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
               <p className="text-[11px] text-slate-200 truncate">{latestNotification.message}</p>
             </div>
           </div>
-          <span className="text-[9px] opacity-75 font-mono flex-shrink-0">En vivo</span>
+          <div className="flex items-center gap-2 flex-shrink-0">
+            <span className="text-[9px] opacity-75 font-mono">En vivo</span>
+            <button
+              onClick={() => setDismissedNotifId(latestNotification.id)}
+              className="p-1 rounded-lg hover:bg-white/10 text-slate-300 hover:text-white transition-colors"
+              title="Cerrar notificación"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
         </div>
       )}
 
