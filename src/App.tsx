@@ -17,7 +17,7 @@ export const App: React.FC = () => {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
   const [userRole, setUserRole] = useState<'leader' | 'collaborator'>('leader');
-  const [userName, setUserName] = useState<string>('Carlos (Líder)');
+  const [userName, setUserName] = useState<string>('Líder del Proyecto');
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [step, setStep] = useState<'step1_project' | 'step2_tasks' | 'step3_assign' | 'step4_dashboard'>('step1_project');
@@ -34,11 +34,14 @@ export const App: React.FC = () => {
     if (p.length > 0) {
       setActiveProjectId(p[0].id);
       setStep('step4_dashboard');
+    } else {
+      setStep('step1_project');
     }
   }, []);
 
   const activeProject = projects.find(p => p.id === activeProjectId) || null;
   const activeTasks = tasks.filter(t => t.projectId === activeProjectId);
+  const activeNotifications = notifications.filter(n => n.projectId === activeProjectId);
 
   // Step 1: Create Project
   const handleCreateProject = (name: string, leaderName: string) => {
@@ -56,6 +59,20 @@ export const App: React.FC = () => {
     setStep('step2_tasks');
   };
 
+  const handleDeleteProject = (projId: string) => {
+    const updatedP = projects.filter(p => p.id !== projId);
+    const updatedT = tasks.filter(t => t.projectId !== projId);
+    setProjects(updatedP);
+    setTasks(updatedT);
+    saveProjects(updatedP);
+    saveTasks(updatedT);
+
+    if (activeProjectId === projId) {
+      setActiveProjectId(updatedP.length > 0 ? updatedP[0].id : null);
+      if (updatedP.length === 0) setStep('step1_project');
+    }
+  };
+
   // Step 2: Add Multiple Detected Tasks
   const handleAddMultipleTasks = (taskTitles: string[]) => {
     if (!activeProjectId) return;
@@ -64,7 +81,7 @@ export const App: React.FC = () => {
       id: 'task-' + Date.now() + '-' + idx,
       projectId: activeProjectId,
       title,
-      assignedTo: idx % 2 === 0 ? 'Sofía' : 'Mateo',
+      assignedTo: idx % 2 === 0 ? 'Colaborador 1' : 'Colaborador 2',
       status: 'pendiente',
       createdAt: new Date().toISOString()
     }));
@@ -108,7 +125,7 @@ export const App: React.FC = () => {
       addNotification({
         projectId: activeProjectId,
         title: '👀 Lectura Confirmada',
-        message: `${userName} confirmó que leyó la tarea: "${targetTask.title}"`,
+        message: `${userName} confirmó que leyó la tarjeta: "${targetTask.title}"`,
         type: 'read'
       });
       setNotifications(getNotifications());
@@ -137,17 +154,11 @@ export const App: React.FC = () => {
       addNotification({
         projectId: activeProjectId,
         title: '🎉 Tarea Finalizada 100%',
-        message: `¡${userName} tildó como terminada la tarea: "${targetTask.title}"!`,
+        message: `¡${userName} tildó como terminada al 100% la tarjeta: "${targetTask.title}"!`,
         type: 'completed'
       });
       setNotifications(getNotifications());
     }
-  };
-
-  const handleMarkNotificationsRead = () => {
-    const updated = notifications.map(n => ({ ...n, read: true }));
-    setNotifications(updated);
-    saveNotifications(updated);
   };
 
   return (
@@ -157,62 +168,60 @@ export const App: React.FC = () => {
       <HeaderNavbar
         userRole={userRole}
         userName={userName}
-        notifications={notifications.filter(n => n.projectId === activeProjectId)}
         onRoleChange={setUserRole}
         onUserNameChange={setUserName}
-        onMarkNotificationsRead={handleMarkNotificationsRead}
       />
 
       {/* Main Container */}
-      <main className="max-w-4xl mx-auto px-4 pt-8 flex-1 w-full space-y-6">
+      <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-8 flex-1 w-full space-y-6">
         
-        {/* Wizard Card Steps Navigation indicator */}
-        <div className="flex items-center justify-center gap-2 text-xs font-semibold">
+        {/* Wizard Step Navigation */}
+        <div className="flex items-center justify-center gap-2 text-xs font-bold">
           <button
             onClick={() => setStep('step1_project')}
-            className={`px-3 py-1 rounded-full border transition-all ${
+            className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
               step === 'step1_project'
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20'
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
             }`}
           >
             1. Proyecto
           </button>
-          <span className="text-slate-600">→</span>
+          <span className="text-slate-700">→</span>
           <button
             onClick={() => setStep('step2_tasks')}
             disabled={!activeProject}
-            className={`px-3 py-1 rounded-full border transition-all ${
+            className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
               step === 'step2_tasks'
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-40'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
             }`}
           >
             2. Tareas
           </button>
-          <span className="text-slate-600">→</span>
+          <span className="text-slate-700">→</span>
           <button
             onClick={() => setStep('step3_assign')}
             disabled={!activeProject || activeTasks.length === 0}
-            className={`px-3 py-1 rounded-full border transition-all ${
+            className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
               step === 'step3_assign'
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-md'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-40'
+                ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
             }`}
           >
             3. Asignar
           </button>
-          <span className="text-slate-600">→</span>
+          <span className="text-slate-700">→</span>
           <button
             onClick={() => setStep('step4_dashboard')}
             disabled={!activeProject}
-            className={`px-3 py-1 rounded-full border transition-all ${
+            className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
               step === 'step4_dashboard'
-                ? 'bg-emerald-600 text-white border-emerald-500 shadow-md'
-                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-40'
+                ? 'bg-emerald-600 text-white border-emerald-500 shadow-lg shadow-emerald-600/20'
+                : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
             }`}
           >
-            4. Tablero & Notificaciones
+            4. Tablero
           </button>
         </div>
 
@@ -226,6 +235,7 @@ export const App: React.FC = () => {
               setStep('step4_dashboard');
             }}
             onCreateProject={handleCreateProject}
+            onDeleteProject={handleDeleteProject}
             onNextStep={() => setStep('step2_tasks')}
           />
         )}
@@ -250,11 +260,12 @@ export const App: React.FC = () => {
           />
         )}
 
-        {/* Step 4: Simple Dashboard & Confirmations */}
+        {/* Step 4: Professional Card Dashboard */}
         {step === 'step4_dashboard' && activeProject && (
           <WizardStep4Dashboard
             project={activeProject}
             tasks={activeTasks}
+            notifications={activeNotifications}
             userRole={userRole}
             userName={userName}
             onConfirmReadTask={handleConfirmReadTask}
