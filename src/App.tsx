@@ -1,23 +1,33 @@
 import React, { useState, useEffect } from 'react';
 import { HeaderNavbar } from './components/HeaderNavbar';
+import { LoginModal } from './components/LoginModal';
 import { WizardStep1Project } from './components/WizardStep1Project';
 import { WizardStep2SmartTasks } from './components/WizardStep2SmartTasks';
 import { WizardStep3AssignTeam } from './components/WizardStep3AssignTeam';
 import { WizardStep4Dashboard } from './components/WizardStep4Dashboard';
-import { Project, Task, AppNotification } from './types';
+import { Project, Task, AppNotification, UserSession } from './types';
 import { 
   getProjects, saveProjects, 
   getTasks, saveTasks, 
   getNotifications, saveNotifications, addNotification 
 } from './services/storage';
 
+const USER_SESSION_KEY = 'synchro_user_session_v1';
+
 export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
 
-  const [userRole, setUserRole] = useState<'leader' | 'collaborator'>('leader');
-  const [userName, setUserName] = useState<string>('Líder del Proyecto');
+  // User Session State (Nombre y Apellido)
+  const [userSession, setUserSession] = useState<UserSession>({
+    firstName: '',
+    lastName: '',
+    fullName: '',
+    role: 'collaborator',
+    isLoggedIn: false
+  });
+  const [isLoginModalOpen, setIsLoginModalOpen] = useState(false);
 
   const [activeProjectId, setActiveProjectId] = useState<string | null>(null);
   const [step, setStep] = useState<'step1_project' | 'step2_tasks' | 'step3_assign' | 'step4_dashboard'>('step1_project');
@@ -31,6 +41,19 @@ export const App: React.FC = () => {
     setTasks(t);
     setNotifications(n);
 
+    // Check saved user session
+    const savedSession = localStorage.getItem(USER_SESSION_KEY);
+    if (savedSession) {
+      try {
+        const parsed = JSON.parse(savedSession);
+        setUserSession(parsed);
+      } catch {
+        setIsLoginModalOpen(true);
+      }
+    } else {
+      setIsLoginModalOpen(true);
+    }
+
     if (p.length > 0) {
       setActiveProjectId(p[0].id);
       setStep('step4_dashboard');
@@ -38,6 +61,19 @@ export const App: React.FC = () => {
       setStep('step1_project');
     }
   }, []);
+
+  const handleLogin = (firstName: string, lastName: string, role: 'leader' | 'collaborator') => {
+    const session: UserSession = {
+      firstName,
+      lastName,
+      fullName: `${firstName} ${lastName}`,
+      role,
+      isLoggedIn: true
+    };
+    setUserSession(session);
+    localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
+    setIsLoginModalOpen(false);
+  };
 
   const activeProject = projects.find(p => p.id === activeProjectId) || null;
   const activeTasks = tasks.filter(t => t.projectId === activeProjectId);
@@ -48,7 +84,7 @@ export const App: React.FC = () => {
     const newProj: Project = {
       id: 'proj-' + Date.now(),
       name,
-      leaderName,
+      leaderName: leaderName || userSession.fullName || 'Líder de Proyecto',
       createdAt: new Date().toISOString()
     };
     const updated = [newProj, ...projects];
@@ -81,7 +117,7 @@ export const App: React.FC = () => {
       id: 'task-' + Date.now() + '-' + idx,
       projectId: activeProjectId,
       title,
-      assignedTo: idx % 2 === 0 ? 'Sofía' : 'Mateo',
+      assignedTo: idx % 2 === 0 ? 'Sofía Gómez' : 'Mateo Rodríguez',
       status: 'pendiente',
       createdAt: new Date().toISOString()
     }));
@@ -128,7 +164,7 @@ export const App: React.FC = () => {
       addNotification({
         projectId: activeProjectId,
         title: '🔄 Tarea Reasignada',
-        message: `La tarjeta "${targetTask.title}" fue reasignada de ${targetTask.assignedTo} a ${newAssignee}`,
+        message: `La tarjeta "${targetTask.title}" fue reasignada de ${targetTask.assignedTo} a ${newAssignee} por ${userSession.fullName}`,
         type: 'reassigned'
       });
       setNotifications(getNotifications());
@@ -138,12 +174,13 @@ export const App: React.FC = () => {
   // Collaborator Step A: Confirm Reading
   const handleConfirmReadTask = (taskId: string) => {
     const targetTask = tasks.find(t => t.id === taskId);
+    const actorName = userSession.fullName || 'Colaborador';
     const updated = tasks.map(t => {
       if (t.id === taskId && t.status === 'pendiente') {
         return {
           ...t,
           status: 'leido' as const,
-          readBy: userName,
+          readBy: actorName,
           readAt: new Date().toISOString()
         };
       }
@@ -157,7 +194,7 @@ export const App: React.FC = () => {
       addNotification({
         projectId: activeProjectId,
         title: '👀 Lectura Confirmada',
-        message: `${userName} confirmó que leyó la tarjeta: "${targetTask.title}"`,
+        message: `${actorName} confirmó que leyó la tarjeta: "${targetTask.title}"`,
         type: 'read'
       });
       setNotifications(getNotifications());
@@ -167,12 +204,13 @@ export const App: React.FC = () => {
   // Collaborator Step B: Complete Task 100%
   const handleCompleteTask = (taskId: string) => {
     const targetTask = tasks.find(t => t.id === taskId);
+    const actorName = userSession.fullName || 'Colaborador';
     const updated = tasks.map(t => {
       if (t.id === taskId) {
         return {
           ...t,
           status: 'completado' as const,
-          completedBy: userName,
+          completedBy: actorName,
           completedAt: new Date().toISOString()
         };
       }
@@ -186,7 +224,7 @@ export const App: React.FC = () => {
       addNotification({
         projectId: activeProjectId,
         title: '🎉 Tarea Finalizada 100%',
-        message: `¡${userName} tildó como terminada al 100% la tarjeta: "${targetTask.title}"!`,
+        message: `¡${actorName} tildó como terminada al 100% la tarjeta: "${targetTask.title}"!`,
         type: 'completed'
       });
       setNotifications(getNotifications());
@@ -198,10 +236,13 @@ export const App: React.FC = () => {
       
       {/* Top Header */}
       <HeaderNavbar
-        userRole={userRole}
-        userName={userName}
-        onRoleChange={setUserRole}
-        onUserNameChange={setUserName}
+        userSession={userSession}
+        onOpenLogin={() => setIsLoginModalOpen(true)}
+        onRoleChange={(role) => {
+          const updated = { ...userSession, role };
+          setUserSession(updated);
+          localStorage.setItem(USER_SESSION_KEY, JSON.stringify(updated));
+        }}
       />
 
       {/* Main Container */}
@@ -298,8 +339,8 @@ export const App: React.FC = () => {
             project={activeProject}
             tasks={activeTasks}
             notifications={activeNotifications}
-            userRole={userRole}
-            userName={userName}
+            userRole={userSession.role}
+            userName={userSession.fullName || 'Usuario'}
             onConfirmReadTask={handleConfirmReadTask}
             onCompleteTask={handleCompleteTask}
             onReassignTask={handleReassignTask}
@@ -309,6 +350,12 @@ export const App: React.FC = () => {
         )}
 
       </main>
+
+      {/* Login Modal for Nombre y Apellido */}
+      <LoginModal
+        isOpen={isLoginModalOpen}
+        onLogin={handleLogin}
+      />
 
     </div>
   );

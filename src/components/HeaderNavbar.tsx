@@ -1,23 +1,23 @@
 import React from 'react';
+import { User, LogOut } from 'lucide-react';
+import { UserSession } from '../types';
 
 interface HeaderNavbarProps {
-  userRole: 'leader' | 'collaborator';
-  userName: string;
+  userSession: UserSession;
+  onOpenLogin: () => void;
   onRoleChange: (role: 'leader' | 'collaborator') => void;
-  onUserNameChange: (name: string) => void;
 }
 
 export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
-  userRole,
-  userName,
-  onRoleChange,
-  onUserNameChange
+  userSession,
+  onOpenLogin,
+  onRoleChange
 }) => {
   return (
     <header className="bg-slate-900/90 backdrop-blur-2xl border-b border-indigo-500/20 sticky top-0 z-40 shadow-xl shadow-slate-950/50">
       <div className="max-w-4xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
         
-        {/* Brand with New Synchro Logo */}
+        {/* Brand */}
         <div className="flex items-center gap-3">
           <img 
             src="/logo.jpg" 
@@ -33,38 +33,51 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
                 PRO
               </span>
             </div>
-            <p className="text-[11px] text-slate-400 font-medium hidden sm:block">Sincronización & Reasignación de Tareas</p>
+            <p className="text-[11px] text-slate-400 font-medium hidden sm:block">Sincronización de Tareas</p>
           </div>
         </div>
 
-        {/* User Role Switcher */}
-        <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
+        {/* User Info & Role Tag */}
+        <div className="flex items-center gap-2 sm:gap-3">
+          
+          {/* User Name Badge */}
           <button
-            onClick={() => {
-              onRoleChange('leader');
-              if (userName.includes('Colaborador')) onUserNameChange('Líder del Proyecto');
-            }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              userRole === 'leader'
-                ? 'bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white shadow-md shadow-indigo-500/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
+            onClick={onOpenLogin}
+            className="flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-slate-800 border border-slate-700/80 hover:border-cyan-500/50 transition-all text-xs text-slate-200"
+            title="Cambiar Nombre y Apellido / Cambiar Usuario"
           >
-            👑 Modo Jefe
+            <div className="w-6 h-6 rounded-full bg-gradient-to-tr from-cyan-500 to-indigo-500 flex items-center justify-center font-bold text-white text-[10px]">
+              {userSession.firstName.charAt(0)}{userSession.lastName.charAt(0)}
+            </div>
+            <span className="font-extrabold text-slate-100 max-w-[120px] truncate">
+              {userSession.fullName || 'Ingresar'}
+            </span>
           </button>
-          <button
-            onClick={() => {
-              onRoleChange('collaborator');
-              if (userName.includes('Líder')) onUserNameChange('Colaborador');
-            }}
-            className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all ${
-              userRole === 'collaborator'
-                ? 'bg-gradient-to-r from-cyan-600 via-teal-600 to-emerald-600 text-white shadow-md shadow-cyan-500/30'
-                : 'text-slate-400 hover:text-white'
-            }`}
-          >
-            👷 Modo Colaborador
-          </button>
+
+          {/* Role Switcher */}
+          <div className="flex items-center bg-slate-950 p-1 rounded-2xl border border-slate-800">
+            <button
+              onClick={() => onRoleChange('leader')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                userSession.role === 'leader'
+                  ? 'bg-gradient-to-r from-indigo-600 to-purple-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              👑 Jefe
+            </button>
+            <button
+              onClick={() => onRoleChange('collaborator')}
+              className={`px-3 py-1 rounded-xl text-xs font-bold transition-all ${
+                userSession.role === 'collaborator'
+                  ? 'bg-gradient-to-r from-cyan-600 to-emerald-600 text-white shadow-md'
+                  : 'text-slate-400 hover:text-white'
+              }`}
+            >
+              👷 Colaborador
+            </button>
+          </div>
+
         </div>
 
       </div>

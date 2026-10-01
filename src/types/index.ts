@@ -33,4 +33,12 @@ export interface AppNotification {
   read: boolean;
 }
 
+export interface UserSession {
+  firstName: string;
+  lastName: string;
+  fullName: string;
+  role: 'leader' | 'collaborator';
+  isLoggedIn: boolean;
+}
+
 export type WizardStep = 'step1_project' | 'step2_tasks' | 'step3_assign' | 'step4_dashboard';
