@@ -73,7 +73,7 @@ export const Navigation: React.FC<NavigationProps> = ({
       </div>
 
       {/* 📱 Mobile Fixed Bottom Dock / Tab Navigation Bar */}
-      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-2xl border-t border-slate-800/90 shadow-2xl shadow-black pb-safe max-w-full overflow-hidden">
+      <nav className="sm:hidden fixed bottom-0 left-0 right-0 z-50 bg-slate-900/95 backdrop-blur-2xl border-t border-slate-800/90 shadow-2xl shadow-black max-w-full overflow-hidden pb-[env(safe-area-inset-bottom,0px)]">
         <div className="flex items-center justify-around h-14 px-2 max-w-md mx-auto">
           {steps.map((item) => {
             const Icon = item.icon;

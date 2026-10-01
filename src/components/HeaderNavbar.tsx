@@ -14,8 +14,8 @@ export const HeaderNavbar: React.FC<HeaderNavbarProps> = ({
   onRoleChange
 }) => {
   return (
-    <header className="bg-slate-900/95 backdrop-blur-2xl border-b border-indigo-500/20 sticky top-0 z-40 shadow-xl shadow-slate-950/60 w-full overflow-hidden">
-      <div className="max-w-4xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 w-full">
+    <header className="bg-slate-900/95 backdrop-blur-2xl border-b border-indigo-500/20 sticky top-0 z-40 shadow-xl shadow-slate-950/60 w-full overflow-hidden pt-[env(safe-area-inset-top,0px)]">
+      <div className="max-w-4xl mx-auto px-3 sm:px-6 h-14 sm:h-16 flex items-center justify-between gap-2 w-full my-auto">
         
         {/* Brand */}
         <div className="flex items-center gap-2 flex-shrink-0">
