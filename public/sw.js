@@ -1,4 +1,4 @@
-const CACHE_NAME = 'sincronia-v5';
+const CACHE_NAME = 'synchro-v6-collaborative-no-roles';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

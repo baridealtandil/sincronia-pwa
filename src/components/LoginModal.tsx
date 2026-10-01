@@ -49,7 +49,6 @@ export const LoginModal: React.FC<LoginModalProps> = ({ isOpen, onLogin, onClose
                 onChange={(e) => setFirstName(e.target.value)}
                 className="w-full px-4 py-3 rounded-2xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500"
                 required
-                autoFocus
               />
             </div>
 
