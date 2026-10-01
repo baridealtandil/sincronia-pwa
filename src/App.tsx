@@ -18,13 +18,17 @@ import { isTaskAssignedToUser } from './utils/taskParser';
 const USER_SESSION_KEY = 'synchro_user_session_v1';
 const COLLABORATORS_KEY = 'synchro_collaborators_v1';
 
-const DEFAULT_COLLABS = ['Sofía Gómez', 'Mateo Rodríguez', 'Lucas Fernández', 'Valentina Ruiz'];
+const PURGED_MOCK_NAMES = [
+  'Sofía Gómez', 'Sofía Ruiz', 'Mateo Rodríguez', 
+  'Lucas Fernández', 'Valentina Ruiz', 
+  'Colaborador 1', 'Colaborador 2', 'Colaborador 3'
+];
 
 export const App: React.FC = () => {
   const [projects, setProjects] = useState<Project[]>([]);
   const [tasks, setTasks] = useState<Task[]>([]);
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [collaborators, setCollaborators] = useState<string[]>(DEFAULT_COLLABS);
+  const [collaborators, setCollaborators] = useState<string[]>([]);
 
   // User Session State (Nombre y Apellido)
   const [userSession, setUserSession] = useState<UserSession>({
@@ -43,36 +47,30 @@ export const App: React.FC = () => {
     const t = getTasks();
     const n = getNotifications();
 
-    setProjects(p);
-    setTasks(t);
-    setNotifications(n);
+    let currentSession: UserSession = {
+      firstName: '',
+      lastName: '',
+      fullName: '',
+      isLoggedIn: false
+    };
 
-    // Load saved collaborators list
-    const savedCollabs = localStorage.getItem(COLLABORATORS_KEY);
-    if (savedCollabs) {
-      try {
-        setCollaborators(JSON.parse(savedCollabs));
-      } catch {
-        setCollaborators(DEFAULT_COLLABS);
-      }
-    }
-
-    // Check saved user session
+    // Check saved user session permanently
     const savedSession = localStorage.getItem(USER_SESSION_KEY);
     if (savedSession) {
       try {
         const parsed = JSON.parse(savedSession);
-        if (parsed && typeof parsed === 'object') {
+        if (parsed && typeof parsed === 'object' && parsed.fullName && parsed.isLoggedIn !== false) {
           const fn = parsed.firstName || (parsed.fullName ? parsed.fullName.split(' ')[0] : '');
           const ln = parsed.lastName || (parsed.fullName ? parsed.fullName.split(' ').slice(1).join(' ') : '');
           const full = parsed.fullName || `${fn} ${ln}`.trim();
-          setUserSession({
+          currentSession = {
             firstName: fn || '',
             lastName: ln || '',
             fullName: full || '',
-            isLoggedIn: Boolean(parsed.isLoggedIn && full)
-          });
-          if (!full) setIsLoginModalOpen(true);
+            isLoggedIn: true
+          };
+          setUserSession(currentSession);
+          setIsLoginModalOpen(false);
         } else {
           setIsLoginModalOpen(true);
         }
@@ -83,6 +81,42 @@ export const App: React.FC = () => {
       setIsLoginModalOpen(true);
     }
 
+    // Load and sanitize collaborators list (no mock names, keep user-added collabs & logged-in user)
+    const savedCollabs = localStorage.getItem(COLLABORATORS_KEY);
+    let loadedCollabs: string[] = [];
+    if (savedCollabs) {
+      try {
+        const parsed = JSON.parse(savedCollabs);
+        if (Array.isArray(parsed)) {
+          loadedCollabs = parsed.filter(c => c && typeof c === 'string' && !PURGED_MOCK_NAMES.includes(c.trim()));
+        }
+      } catch {}
+    }
+
+    if (currentSession.fullName && !loadedCollabs.includes(currentSession.fullName)) {
+      loadedCollabs.unshift(currentSession.fullName);
+    }
+
+    setCollaborators(loadedCollabs);
+    localStorage.setItem(COLLABORATORS_KEY, JSON.stringify(loadedCollabs));
+
+    // Clean any tasks assigned to purged mock names -> assign to logged in user or creator
+    const defaultAssignee = currentSession.fullName || (loadedCollabs.length > 0 ? loadedCollabs[0] : 'Gabriel Marcasso');
+    const cleanedTasks = t.map(task => {
+      if (PURGED_MOCK_NAMES.includes(task.assignedTo)) {
+        return {
+          ...task,
+          assignedTo: defaultAssignee
+        };
+      }
+      return task;
+    });
+
+    setProjects(p);
+    setTasks(cleanedTasks);
+    saveTasks(cleanedTasks);
+    setNotifications(n);
+
     if (p.length > 0) {
       setActiveProjectId(p[0].id);
       setStep('step4_dashboard');
@@ -92,25 +126,30 @@ export const App: React.FC = () => {
   }, []);
 
   const handleSaveCollabsList = (list: string[]) => {
-    setCollaborators(list);
-    localStorage.setItem(COLLABORATORS_KEY, JSON.stringify(list));
+    const cleanList = Array.from(new Set(list))
+      .filter(c => c && typeof c === 'string' && !PURGED_MOCK_NAMES.includes(c.trim()));
+    setCollaborators(cleanList);
+    localStorage.setItem(COLLABORATORS_KEY, JSON.stringify(cleanList));
   };
 
   const handleAddCollaborator = (name: string) => {
-    if (!collaborators.includes(name)) {
-      const updated = [...collaborators, name];
+    const trimmed = name.trim();
+    if (trimmed && !PURGED_MOCK_NAMES.includes(trimmed) && !collaborators.includes(trimmed)) {
+      const updated = [...collaborators, trimmed];
       handleSaveCollabsList(updated);
     }
   };
 
   const handleEditCollaborator = (oldName: string, newName: string) => {
-    const updatedCollabs = collaborators.map(c => c === oldName ? newName : c);
+    const trimmedNew = newName.trim();
+    if (!trimmedNew) return;
+    const updatedCollabs = collaborators.map(c => c === oldName ? trimmedNew : c);
     handleSaveCollabsList(updatedCollabs);
 
     // Propagate new name to all assigned tasks
     const updatedTasks = tasks.map(t => {
       if (t.assignedTo === oldName) {
-        return { ...t, assignedTo: newName };
+        return { ...t, assignedTo: trimmedNew };
       }
       return t;
     });
@@ -124,18 +163,20 @@ export const App: React.FC = () => {
   };
 
   const handleLogin = (firstName: string, lastName: string) => {
+    const full = `${firstName} ${lastName}`.trim();
     const session: UserSession = {
       firstName,
       lastName,
-      fullName: `${firstName} ${lastName}`,
+      fullName: full,
       isLoggedIn: true
     };
     setUserSession(session);
     localStorage.setItem(USER_SESSION_KEY, JSON.stringify(session));
 
-    // Also add to collaborators list if not already present
-    if (`${firstName} ${lastName}`.trim()) {
-      handleAddCollaborator(`${firstName} ${lastName}`.trim());
+    // Automatically add user's full name to collaborators list if not present
+    if (full && !collaborators.includes(full)) {
+      const updated = [full, ...collaborators.filter(c => !PURGED_MOCK_NAMES.includes(c))];
+      handleSaveCollabsList(updated);
     }
 
     setIsLoginModalOpen(false);
@@ -175,12 +216,18 @@ export const App: React.FC = () => {
   const handleAddMultipleTasks = (taskTitles: string[]) => {
     if (!activeProjectId) return;
 
-    const availableCollabs = collaborators.length > 0 ? collaborators : DEFAULT_COLLABS;
+    const validCollabs = collaborators.filter(c => !PURGED_MOCK_NAMES.includes(c));
+    if (userSession.fullName && !validCollabs.includes(userSession.fullName)) {
+      validCollabs.unshift(userSession.fullName);
+    }
+    const defaultAssignee = userSession.fullName || (validCollabs.length > 0 ? validCollabs[0] : 'Gabriel Marcasso');
+    const availablePool = validCollabs.length > 0 ? validCollabs : [defaultAssignee];
+
     const newTasksList: Task[] = taskTitles.map((title, idx) => ({
       id: 'task-' + Date.now() + '-' + idx,
       projectId: activeProjectId,
       title,
-      assignedTo: availableCollabs[idx % availableCollabs.length],
+      assignedTo: availablePool[idx % availablePool.length],
       status: 'pendiente',
       createdAt: new Date().toISOString()
     }));
@@ -245,15 +292,15 @@ export const App: React.FC = () => {
     }
   };
 
-  // Collaborator Step A: Confirm Reading
+  // Confirm Reading
   const handleConfirmReadTask = (taskId: string) => {
     const targetTask = tasks.find(t => t.id === taskId);
-    const actorName = userSession.fullName || 'Colaborador';
+    const actorName = userSession.fullName || 'Usuario';
     const updated = tasks.map(t => {
-      if (t.id === taskId && t.status === 'pendiente') {
+      if (t.id === taskId) {
         return {
           ...t,
-          status: 'leido' as const,
+          status: (t.status === 'completado' ? 'completado' : 'leido') as any,
           readBy: actorName,
           readAt: new Date().toISOString()
         };
@@ -267,18 +314,18 @@ export const App: React.FC = () => {
     if (targetTask && activeProjectId) {
       addNotification({
         projectId: activeProjectId,
-        title: '👀 Lectura Confirmada',
-        message: `${actorName} confirmó que leyó la tarjeta: "${targetTask.title}"`,
+        title: '👁️ Tarea Leída',
+        message: `¡${actorName} leyó la tarjeta: "${targetTask.title}"!`,
         type: 'read'
       });
       setNotifications(getNotifications());
     }
   };
 
-  // Collaborator Step B: Complete Task 100%
+  // Tildar 100% Terminada
   const handleCompleteTask = (taskId: string) => {
     const targetTask = tasks.find(t => t.id === taskId);
-    const actorName = userSession.fullName || 'Colaborador';
+    const actorName = userSession.fullName || 'Usuario';
     const updated = tasks.map(t => {
       if (t.id === taskId) {
         return {
@@ -316,6 +363,7 @@ export const App: React.FC = () => {
     // Simulate smooth network/storage sync feedback
     await new Promise(resolve => setTimeout(resolve, 600));
   };
+
   const activeProject = (projects || []).find(p => p && p.id === activeProjectId) || (projects.length > 0 ? projects[0] : null);
   const activeTasks = activeProject ? (tasks || []).filter(t => t && t.projectId === activeProject.id) : [];
   const activeNotifications = activeProject ? (notifications || []).filter(n => n && n.projectId === activeProject.id) : [];
@@ -338,7 +386,7 @@ export const App: React.FC = () => {
         {/* Main Container */}
         <main className="max-w-3xl mx-auto px-3 sm:px-6 pt-5 sm:pt-8 flex-1 w-full space-y-6">
           
-          {/* Professional Navigation Bar (Segmented on desktop, bottom dock on mobile) */}
+          {/* Professional Navigation Bar */}
           <Navigation
             step={step}
             setStep={setStep}
@@ -393,6 +441,7 @@ export const App: React.FC = () => {
             notifications={activeNotifications}
             userName={userSession.fullName || 'Usuario'}
             userFirstName={userSession.firstName || 'Usuario'}
+            collaborators={collaborators}
             onConfirmReadTask={handleConfirmReadTask}
             onCompleteTask={handleCompleteTask}
             onReassignTask={handleReassignTask}

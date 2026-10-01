@@ -13,6 +13,7 @@ interface WizardStep4Props {
   notifications: AppNotification[];
   userName: string;
   userFirstName?: string;
+  collaborators?: string[];
   onConfirmReadTask: (taskId: string) => void;
   onCompleteTask: (taskId: string) => void;
   onReassignTask: (taskId: string, newAssignee: string) => void;
@@ -26,6 +27,7 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   notifications = [],
   userName = 'Usuario',
   userFirstName,
+  collaborators = [],
   onConfirmReadTask,
   onCompleteTask,
   onReassignTask,
@@ -56,8 +58,20 @@ export const WizardStep4Dashboard: React.FC<WizardStep4Props> = ({
   const unreadCount = unreadTasks.length;
   const percent = totalTasks > 0 ? Math.round((completedCount / totalTasks) * 100) : 0;
 
-  const uniqueAssignees = Array.from(new Set(tasks.map(t => t.assignedTo)));
-  const defaultTeamList = Array.from(new Set([...uniqueAssignees, 'Sofía Gómez', 'Mateo Rodríguez', 'Lucas Fernández', 'Valentina Ruiz']));
+  const PURGED_MOCK_NAMES = [
+    'Sofía Gómez', 'Sofía Ruiz', 'Mateo Rodríguez', 
+    'Lucas Fernández', 'Valentina Ruiz', 
+    'Colaborador 1', 'Colaborador 2', 'Colaborador 3'
+  ];
+
+  const uniqueAssignees = Array.from(new Set(tasks.map(t => t.assignedTo)))
+    .filter(name => name && !PURGED_MOCK_NAMES.includes(name));
+
+  const defaultTeamList = Array.from(new Set([
+    ...(safeUserName && safeUserName !== 'Usuario' ? [safeUserName] : []),
+    ...(collaborators || []),
+    ...uniqueAssignees
+  ])).filter(name => name && name !== 'Usuario' && !PURGED_MOCK_NAMES.includes(name));
 
   const handleRead = (taskId: string) => {
     onConfirmReadTask(taskId);
