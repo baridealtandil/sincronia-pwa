@@ -67,7 +67,6 @@ export const WizardStep2SmartTasks: React.FC<WizardStep2Props> = ({
             rows={5}
             placeholder="Ejemplo:&#10;Diseñar el logotipo de la marca&#10;Redactar textos promocionales&#10;Configurar cuentas del equipo"
             className="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-indigo-500 resize-none font-mono transition-colors"
-            autoFocus
           />
         </div>
 

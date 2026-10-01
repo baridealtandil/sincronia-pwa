@@ -55,15 +55,14 @@ export const WizardStep1Project: React.FC<WizardStep1Props> = ({
             onChange={(e) => setName(e.target.value)}
             className="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
             required
-            autoFocus
           />
         </div>
 
         <div>
-          <label className="block text-xs font-bold text-slate-200 mb-2">Jefe / Líder del Proyecto</label>
+          <label className="block text-xs font-bold text-slate-200 mb-2">Creador del Proyecto</label>
           <input
             type="text"
-            placeholder="Ej. Ing. Carlos Pérez"
+            placeholder="Ej. Gabriel Marcasso"
             value={leaderName}
             onChange={(e) => setLeaderName(e.target.value)}
             className="w-full px-4 py-3.5 rounded-2xl bg-slate-950 border border-slate-800 text-sm text-white placeholder-slate-600 focus:outline-none focus:border-cyan-500 transition-colors"
