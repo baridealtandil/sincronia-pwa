@@ -1,6 +1,6 @@
 {
-  "short_name": "Sincronía",
-  "name": "Sincronía - Tareas & Proyectos en Tiempo Real",
+  "short_name": "Synchro",
+  "name": "Synchro - Sincronización de Tareas de Equipo",
   "icons": [
     {
       "src": "pwa-192x192.png",
@@ -15,9 +15,9 @@
     }
   ],
   "start_url": ".",
-  "background_color": "#0f172a",
+  "background_color": "#090d16",
   "theme_color": "#6366f1",
   "display": "standalone",
   "orientation": "portrait",
-  "description": "App colaborativa en tiempo real con autenticación PIN y Face/Touch ID para gestión de tareas por proyecto."
+  "description": "App profesional para la asignación, reasignación y seguimiento en tiempo real de tareas de grupo."
 }

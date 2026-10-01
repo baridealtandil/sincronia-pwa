@@ -81,7 +81,7 @@ export const App: React.FC = () => {
       id: 'task-' + Date.now() + '-' + idx,
       projectId: activeProjectId,
       title,
-      assignedTo: idx % 2 === 0 ? 'Colaborador 1' : 'Colaborador 2',
+      assignedTo: idx % 2 === 0 ? 'Sofía' : 'Mateo',
       status: 'pendiente',
       createdAt: new Date().toISOString()
     }));
@@ -101,6 +101,38 @@ export const App: React.FC = () => {
     });
     setTasks(updated);
     saveTasks(updated);
+  };
+
+  // Reassign Task to another collaborator
+  const handleReassignTask = (taskId: string, newAssignee: string) => {
+    const targetTask = tasks.find(t => t.id === taskId);
+    const updated = tasks.map(t => {
+      if (t.id === taskId) {
+        return {
+          ...t,
+          reassignedFrom: t.assignedTo,
+          assignedTo: newAssignee,
+          status: 'pendiente' as const,
+          readBy: null,
+          readAt: null,
+          reassignedAt: new Date().toISOString()
+        };
+      }
+      return t;
+    });
+
+    setTasks(updated);
+    saveTasks(updated);
+
+    if (targetTask && activeProjectId) {
+      addNotification({
+        projectId: activeProjectId,
+        title: '🔄 Tarea Reasignada',
+        message: `La tarjeta "${targetTask.title}" fue reasignada de ${targetTask.assignedTo} a ${newAssignee}`,
+        type: 'reassigned'
+      });
+      setNotifications(getNotifications());
+    }
   };
 
   // Collaborator Step A: Confirm Reading
@@ -162,7 +194,7 @@ export const App: React.FC = () => {
   };
 
   return (
-    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500 selection:text-white pb-12">
+    <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-cyan-500 selection:text-white pb-12">
       
       {/* Top Header */}
       <HeaderNavbar
@@ -181,7 +213,7 @@ export const App: React.FC = () => {
             onClick={() => setStep('step1_project')}
             className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
               step === 'step1_project'
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20'
+                ? 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-600/20'
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white'
             }`}
           >
@@ -193,7 +225,7 @@ export const App: React.FC = () => {
             disabled={!activeProject}
             className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
               step === 'step2_tasks'
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20'
+                ? 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-600/20'
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
             }`}
           >
@@ -205,7 +237,7 @@ export const App: React.FC = () => {
             disabled={!activeProject || activeTasks.length === 0}
             className={`px-3.5 py-1.5 rounded-2xl border transition-all ${
               step === 'step3_assign'
-                ? 'bg-indigo-600 text-white border-indigo-500 shadow-lg shadow-indigo-600/20'
+                ? 'bg-cyan-600 text-white border-cyan-500 shadow-lg shadow-cyan-600/20'
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
             }`}
           >
@@ -221,7 +253,7 @@ export const App: React.FC = () => {
                 : 'bg-slate-900 border-slate-800 text-slate-400 hover:text-white disabled:opacity-30'
             }`}
           >
-            4. Tablero
+            4. Tablero Synchro
           </button>
         </div>
 
@@ -270,6 +302,7 @@ export const App: React.FC = () => {
             userName={userName}
             onConfirmReadTask={handleConfirmReadTask}
             onCompleteTask={handleCompleteTask}
+            onReassignTask={handleReassignTask}
             onNewProjectClick={() => setStep('step1_project')}
             onAddMoreTasksClick={() => setStep('step2_tasks')}
           />

@@ -11,6 +11,8 @@ export interface Task {
   readAt?: string | null;
   completedBy?: string | null;
   completedAt?: string | null;
+  reassignedFrom?: string | null;
+  reassignedAt?: string | null;
   createdAt: string;
 }
 
@@ -26,9 +28,9 @@ export interface AppNotification {
   projectId: string;
   title: string;
   message: string;
-  type: 'read' | 'completed' | 'info';
+  type: 'read' | 'completed' | 'reassigned' | 'info';
   timestamp: string;
   read: boolean;
 }
 
-export type WizardStep = 'select_create_project' | 'write_tasks' | 'assign_team' | 'project_dashboard';
+export type WizardStep = 'step1_project' | 'step2_tasks' | 'step3_assign' | 'step4_dashboard';
